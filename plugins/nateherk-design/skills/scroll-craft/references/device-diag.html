@@ -21,6 +21,19 @@
 
   Scrubbing is driven by a rAF poll of scrollY, not scroll events, because a
   driven browser can move the page without firing them.
+
+  Each pane also reports seek latency, p50 and p95 in ms: the time from a
+  currentTime write to its 'seeked' event, the number the engine's lerp loop
+  is rate-limited by.
+
+  Encode calibration (?manifest=<url>): instead of the three panes, the page
+  loads a candidate list and measures each file in turn, exactly as
+  scripts/seek-lab.mjs does on desktop (fetch, Blob, prime with play() then
+  pause(), 60 seeded seeks, seed 7), so the phone numbers compare directly.
+  The manifest is lab/encode/phone-candidates.json: an array, or an object
+  with a "candidates" array, of { file or name, size, height, crf, gop }.
+  Paths resolve against the manifest's URL. Tap Run, wait for the last row,
+  screenshot. Optional: &seeks=60&seed=7.
 -->
 <html lang="en">
 <head>
@@ -45,6 +58,17 @@
   .bad { background: #6b1220; color: #ffc2cd; }
   .stats { color: #aab7c4; font-size: 11.5px; white-space: pre-line; }
   #meta { color: #8fa0b3; font-size: 11.5px; }
+  /* ?manifest= mode: one row per candidate, read off a 390px screenshot */
+  body.bench { height: auto; }
+  body.bench .panel { position: static; }
+  .bench-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .bench-bar button { font: inherit; font-weight: 700; padding: 8px 14px; border-radius: 6px; border: 0; background: #d8ff3e; color: #0b0f14; }
+  .bench-bar video { width: 64px; height: 40px; object-fit: cover; background: #000; border-radius: 4px; }
+  table.res { width: 100%; border-collapse: collapse; font-size: 11px; font-variant-numeric: tabular-nums; }
+  table.res th, table.res td { padding: 3px 4px; border-bottom: 1px solid #26303c; text-align: right; white-space: nowrap; }
+  table.res th:first-child, table.res td:first-child { text-align: left; white-space: normal; }
+  table.res td.run { color: #d8ff3e; }
+  table.res td.err { color: #ffc2cd; }
   #log { flex: 1 1 auto; overflow: auto; background: #10161d; border: 1px solid #26303c; border-radius: 6px; padding: 8px; font-size: 11px; color: #9fb4c8; white-space: pre-wrap; }
 </style>
 </head>
@@ -76,6 +100,17 @@
   }
   window.addEventListener('error', function (e) { log('JS ERROR: ' + e.message); });
 
+  // Nearest-rank percentile, the same rule scripts/seek-lab.mjs uses.
+  function pct(list, p) {
+    var s = list.slice().sort(function (a, b) { return a - b; });
+    if (!s.length) return null;
+    return s[Math.max(0, Math.min(s.length - 1, Math.ceil((p / 100) * s.length) - 1))];
+  }
+  function ms(v) { return v === null ? '-' : v.toFixed(1); }
+
+  var QS = new URLSearchParams(location.search);
+  if (QS.get('manifest')) { bench(QS.get('manifest')); return; }
+
   var maxScrolled = 0;
   var cellsEl = document.getElementById('cells');
   var canvas = document.createElement('canvas');
@@ -96,11 +131,19 @@
       verdict: cell.querySelector('.verdict'),
       stats: cell.querySelector('.stats'),
       seeked: 0, hashes: {}, hashCount: 0, prime: 'not tried',
-      primed: false, priming: false, err: ''
+      primed: false, priming: false, err: '',
+      lat: [], seekT0: 0
     };
     T.el.muted = true; T.el.playsInline = true;
 
     T.el.addEventListener('seeked', function () { T.seeked++; });
+    // Seek latency: only seeks the scroll loop issued, timed write to seeked.
+    T.el.addEventListener('seeked', function () {
+      if (!T.seekT0) return;
+      T.lat.push(performance.now() - T.seekT0);
+      if (T.lat.length > 400) T.lat.shift();
+      T.seekT0 = 0;
+    });
     T.el.addEventListener('error', function () {
       var e = T.el.error;
       T.err = 'MediaError code ' + (e ? e.code : '?');
@@ -173,7 +216,7 @@
       if (!T.el.duration || T.el.seeking) return;
       var t = p * T.el.duration * 0.98;
       if (Math.abs(T.el.currentTime - t) > 0.02) {
-        try { T.el.currentTime = t; } catch (e) {}
+        try { T.seekT0 = performance.now(); T.el.currentTime = t; } catch (e) { T.seekT0 = 0; }
       }
     });
     requestAnimationFrame(loop);
@@ -198,6 +241,7 @@
         'prime: ' + T.prime +
         '\nreadyState ' + T.el.readyState + ' · seeks done ' + T.seeked +
         '\ntime ' + T.el.currentTime.toFixed(2) + 's · frames seen ' + T.hashCount +
+        '\nseek p50 ' + ms(pct(T.lat, 50)) + 'ms · p95 ' + ms(pct(T.lat, 95)) + 'ms (' + T.lat.length + ')' +
         (T.err ? '\n' + T.err : '');
       if (T.hashCount >= 3) { T.verdict.textContent = 'MOVING'; T.verdict.className = 'verdict ok'; }
       else if (T.err) { T.verdict.textContent = 'ERROR'; T.verdict.className = 'verdict bad'; }
@@ -208,6 +252,166 @@
   document.getElementById('meta').textContent =
     navigator.userAgent + ' · ' + innerWidth + 'x' + innerHeight +
     ' · dpr ' + devicePixelRatio;
+
+  // ---- ?manifest= : sequential seek benchmark, one row per candidate -----
+  function bench(manifestUrl) {
+    var SEEKS = parseInt(QS.get('seeks') || '60', 10) || 60;
+    var SEED = parseInt(QS.get('seed') || '7', 10) || 7;
+    document.body.className = 'bench';
+    document.querySelector('h1').textContent = 'seek latency: tap Run, wait for the last row, screenshot';
+    document.querySelector('.hint').textContent = SEEKS + ' seeded seeks per file (seed ' + SEED +
+      '), timed from the currentTime write to seeked, the same schedule as seek-lab.mjs. Keep the screen on.';
+    document.getElementById('meta').textContent = navigator.userAgent + ' · ' + innerWidth + 'x' + innerHeight + ' · dpr ' + devicePixelRatio;
+
+    var bar = document.createElement('div');
+    bar.className = 'bench-bar';
+    var btn = document.createElement('button');
+    btn.textContent = 'Run';
+    btn.disabled = true;
+    var status = document.createElement('span');
+    status.textContent = 'loading manifest';
+    var preview = document.createElement('video');
+    preview.muted = true; preview.playsInline = true;
+    bar.appendChild(btn); bar.appendChild(status); bar.appendChild(preview);
+    var table = document.createElement('table');
+    table.className = 'res';
+    table.innerHTML = '<thead><tr><th>candidate</th><th>MB</th><th>p50</th><th>p95</th><th>frames</th><th>t/o</th></tr></thead><tbody></tbody>';
+    var cells = document.getElementById('cells');
+    cells.style.display = 'none';
+    cells.parentNode.insertBefore(bar, cells);
+    cells.parentNode.insertBefore(table, cells);
+
+    var list = [], rows = [], results = [];
+    var base = new URL(manifestUrl, location.href);
+    fetch(base.href).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (j) {
+      list = (Array.isArray(j) ? j : (j.candidates || [])).map(function (c) {
+        var f = c.file || c.name;
+        return { c: c, file: f, url: new URL(f, base).href };
+      });
+      list.forEach(function (it) {
+        var tr = document.createElement('tr');
+        var label = it.c.height && it.c.crf ? it.c.height + 'p crf' + it.c.crf + ' g' + it.c.gop + (it.c.tier ? ' ' + it.c.tier : '') : it.file;
+        [label, it.c.size ? (it.c.size / 1048576).toFixed(2) : '?', '', '', '', ''].forEach(function (v) {
+          var td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
+        });
+        table.tBodies[0].appendChild(tr);
+        rows.push(tr);
+      });
+      status.textContent = list.length + ' candidates';
+      btn.disabled = !list.length;
+    }).catch(function (e) { status.textContent = 'manifest failed: ' + e.message; log('manifest ' + base.href + ': ' + e.message); });
+
+    btn.addEventListener('click', function () {
+      btn.disabled = true;
+      var i = 0;
+      (function next() {
+        if (i >= list.length) {
+          status.textContent = 'done: ' + list.length + ' candidates';
+          log(JSON.stringify({ ua: navigator.userAgent, seeks: SEEKS, seed: SEED, results: results }));
+          return;
+        }
+        var k = i++;
+        rows[k].cells[2].className = 'run';
+        rows[k].cells[2].textContent = '...';
+        status.textContent = 'measuring ' + (k + 1) + ' of ' + list.length;
+        measure(list[k], SEEKS, SEED).then(function (r) {
+          results.push(r);
+          rows[k].cells[2].className = '';
+          rows[k].cells[2].textContent = ms(r.p50);
+          rows[k].cells[3].textContent = ms(r.p95);
+          rows[k].cells[4].textContent = String(r.frames);
+          rows[k].cells[5].textContent = String(r.timeouts);
+        }, function (e) {
+          rows[k].cells[2].className = 'err';
+          rows[k].cells[2].textContent = 'ERR';
+          log(list[k].file + ': ' + (e && e.message));
+          results.push({ file: list[k].file, error: String(e && e.message) });
+        }).then(next);
+      })();
+    });
+
+    // Same PRNG as seek-lab.mjs and encode-lab.mjs, so the seek times match.
+    function mulberry32(s) {
+      return function () {
+        s |= 0; s = (s + 0x6D2B79F5) | 0;
+        var t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+    function once(el, type, ms) {
+      return new Promise(function (resolve) {
+        var h = function () { el.removeEventListener(type, h); resolve(true); };
+        el.addEventListener(type, h);
+        if (ms) setTimeout(function () { el.removeEventListener(type, h); resolve(false); }, ms);
+      });
+    }
+    // Mirrors seek-lab.mjs measureFile(): fetch, Blob, preload auto, muted,
+    // force the first seek, prime with play() then pause(), then time seeks.
+    function measure(it, seeks, seed) {
+      var el = preview, url = null;
+      var hashes = {}, frames = 0, samples = [], timeouts = 0;
+      return fetch(it.url).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.blob();
+      }).then(function (blob) {
+        var meta = once(el, 'loadedmetadata', 15000);
+        el.preload = 'auto'; el.muted = true; el.playsInline = true;
+        url = URL.createObjectURL(blob);
+        el.src = url;
+        return meta;
+      }).then(function () {
+        var first = once(el, 'seeked', 4000);
+        el.currentTime = 0.001;
+        return first;
+      }).then(function () {
+        var p;
+        try { p = el.play(); } catch (e) { p = null; }
+        return Promise.resolve(p).catch(function () {}).then(function () { try { el.pause(); } catch (e) {} });
+      }).then(function () {
+        var rand = mulberry32(seed), dur = el.duration || 5, n = 0;
+        return new Promise(function (resolve) {
+          (function step() {
+            if (n++ >= seeks) { resolve(); return; }
+            var target = Math.min(dur - 0.01, Math.max(0, rand() * dur));
+            var done = once(el, 'seeked', 4000);
+            var t0 = performance.now();
+            el.currentTime = target;
+            done.then(function (ok) {
+              if (ok) samples.push(performance.now() - t0); else timeouts++;
+              var h = hashFrame(el);
+              if (h !== null && !hashes[h]) { hashes[h] = 1; frames++; }
+              step();
+            });
+          })();
+        });
+      }).then(function () {
+        return { file: it.file, height: it.c.height, crf: it.c.crf, gop: it.c.gop, size: it.c.size,
+          p50: pct(samples, 50), p95: pct(samples, 95), seeks: samples.length, timeouts: timeouts, frames: frames };
+      }).then(release, function (e) { release(); throw e; });
+      function release(r) {
+        try { el.pause(); el.removeAttribute('src'); el.load(); } catch (e) {}
+        if (url) URL.revokeObjectURL(url);
+        return r;
+      }
+    }
+    // Own canvas: the early return above skips the panes' canvas setup.
+    var hc = document.createElement('canvas');
+    hc.width = 16; hc.height = 16;
+    var hctx = hc.getContext('2d', { willReadFrequently: true });
+    function hashFrame(v) {
+      if (v.readyState < 2) return null;
+      try {
+        hctx.drawImage(v, 0, 0, 16, 16);
+        var d = hctx.getImageData(0, 0, 16, 16).data, h = 0;
+        for (var i = 0; i < d.length; i += 7) h = (h * 31 + d[i]) >>> 0;
+        return h;
+      } catch (e) { return null; }
+    }
+  }
 })();
 </script>
 </body>

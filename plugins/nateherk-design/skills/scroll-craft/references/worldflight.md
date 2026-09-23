@@ -8,6 +8,14 @@ horizontal edges travel up the screen, and then you start scrolling down again.
 Every one of those defects is the same defect. A pinned act is a block in the
 document, and a document made of blocks has seams.
 
+Worldflight is the heaviest page this skill can build: every leg is a clip,
+every leg is mounted for the life of the page, and there is no stills
+fallback except the posters. Choose it only when BRIEF.md says "one
+continuous journey" and accepts the media budget in writing. Under Save-Data
+or a slow connection the engine holds every leg on its poster (the `sc-lite`
+state), so the posters have to tell the whole story on their own, exactly as
+they must under reduced motion.
+
 Worldflight removes the seams by removing the blocks.
 
 There is **one** `position: fixed` stage for the whole page. Every leg of the

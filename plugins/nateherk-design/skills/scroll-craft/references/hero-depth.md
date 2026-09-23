@@ -4,6 +4,12 @@
 
 For Nate's hero-led marketing websites, **layering is part of the baseline, not an optional polish pass**. A beautiful full-screen photograph with one parallax transform and some text fades can still feel flat. Design a memorable spatial relationship in the hero from the beginning, rather than waiting for Nate to ask for more depth.
 
+Native sticky scrolling with independently transformed planes provides this
+depth without WebGL or a generated video, and it is the default route. Reach
+for the 3D module when the subject must rotate or re-light, and for video
+only when the peak needs real camera motion. Both are escalations the brief
+records.
+
 This preference applies to the hero, not to every section of every website. Preserve the requested brand, content, framework, and functionality. Honor explicit static or simpler directions. Working surfaces such as dashboards do not need an invented marketing hero.
 
 ## Plan the depth before generating assets
@@ -29,7 +35,6 @@ Atmosphere can occupy both a rear and a front plane when it supports the scene. 
 ## Choreograph restrained motion
 
 - Use one coherent camera idea and purposeful transitions. Premium means controlled movement and good timing, not constant movement everywhere.
-- Native sticky scrolling with independently transformed planes can provide depth without WebGL or a generated video. Choose heavier tools only when they improve the requested experience.
 - Keep essential copy and calls to action as semantic HTML. Establish deliberate layer order for typography, subject, foreground, and atmosphere.
 - Prefer composited transforms and opacity, a shared scroll progress value, and requestAnimationFrame updates. Avoid rendering the whole page again on every scroll tick.
 - Subtle pointer response is optional. It must not be the only way to experience the hero. Never capture or lock the desktop cursor for this effect.

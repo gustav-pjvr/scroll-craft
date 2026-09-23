@@ -150,6 +150,63 @@ try {
   add("required", "workspace", false, e.message, "Fix or delete the offending .scrollcraft.json.");
 }
 
+// ------------------------------------------------------ vendor/three ----
+// Only when the cwd is a build folder. Present: report the version. Absent:
+// warn only if a page actually uses the 3D route, because most pages never do.
+function threeVersion(dir) {
+  for (const f of ["VERSION", "version.txt"]) {
+    const p = path.join(dir, f);
+    if (fs.existsSync(p)) return fs.readFileSync(p, "utf8").trim().split(/\s+/)[0];
+  }
+  // three.vendor.json is what scripts/vendor-three.mjs writes.
+  for (const [f, key] of [["three.vendor.json", "three"], ["manifest.json", "version"], ["package.json", "version"]]) {
+    const p = path.join(dir, f);
+    try { const v = JSON.parse(fs.readFileSync(p, "utf8"))[key]; if (v) return String(v); } catch {}
+  }
+  for (const f of ["three.module.min.js", "three.module.js", "three.core.min.js", "three.core.js"]) {
+    const p = path.join(dir, f);
+    if (!fs.existsSync(p)) continue;
+    const m = fs.readFileSync(p, "utf8").match(/REVISION\s*=\s*["'](\d+[^"']*)["']/);
+    if (m) return "r" + m[1];
+  }
+  return "version not recorded";
+}
+{
+  const cwd = process.cwd();
+  const vendor = path.join(cwd, "vendor", "three");
+  const isBuild = ["scrollcraft.js", "index.html"].some((f) => fs.existsSync(path.join(cwd, f)));
+  const uses3d = isBuild && fs.readdirSync(cwd).filter((f) => f.endsWith(".html"))
+    .some((f) => /data-sc-3d\b/.test(fs.readFileSync(path.join(cwd, f), "utf8")));
+  if (fs.existsSync(vendor)) add("optional", "vendor/three", true, threeVersion(vendor), "");
+  else if (uses3d) add("optional", "vendor/three", false, "a page uses data-sc-3d, but vendor/three is missing",
+    "Run `node <skill>/scripts/vendor-three.mjs --out vendor/three` in the build folder.");
+}
+
+// ----------------------------------------------------- bed tier -------
+// encode.sh's bed tier ships uncalibrated (height 0) until the measurement lab
+// and Gustav's blind pick fill the table. Say which state this copy is in.
+{
+  const enc = path.join(HERE, "encode.sh");
+  if (!fs.existsSync(enc)) {
+    add("optional", "encode bed tier", false, "encode.sh not found beside doctor.mjs", "");
+  } else {
+    const src = fs.readFileSync(enc, "utf8");
+    const val = (k) => { const m = src.match(new RegExp(`^\\s*${k}=["']?(\\d+)`, "m")); return m ? Number(m[1]) : null; };
+    const d = { h: val("BED_HEIGHT"), g: val("BED_GOP"), c: val("BED_CRF") };
+    const m = { h: val("BED_MOBILE_HEIGHT"), g: val("BED_MOBILE_GOP"), c: val("BED_MOBILE_CRF") };
+    const cal = (t) => t.h > 0 && t.g > 0 && t.c > 0;
+    const show = (t) => `${t.h}p gop ${t.g} crf ${t.c}`;
+    if (d.h === null && m.h === null) {
+      add("optional", "encode bed tier", false, "this encode.sh has no bed tier table",
+        "Only hero (desktop/mobile) encodes are available. See references/encode-tiers.md.");
+    } else {
+      add("optional", "encode bed tier", cal(d) && cal(m),
+        `desktop ${cal(d) ? show(d) : "not calibrated"}, mobile ${cal(m) ? show(m) : "not calibrated"}`,
+        "`encode.sh ... bed` exits 2 until the tier is calibrated. Use the hero tier meanwhile; see references/encode-tiers.md.");
+    }
+  }
+}
+
 // -------------------------------------------------------------- report ----
 const mark = (r) => (r.ok ? "\u001b[32m ok \u001b[0m" : r.sev === "required" ? "\u001b[31mFAIL\u001b[0m" : "\u001b[33mwarn\u001b[0m");
 console.log("\nscrollcraft preflight\n");

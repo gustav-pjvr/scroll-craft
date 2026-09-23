@@ -11,6 +11,21 @@
  *   node shoot.mjs --url http://localhost:4500 --out lab/shots --steps 12
  *   node shoot.mjs --url ... --width 375 --height 812 --out lab/mobile
  *   node shoot.mjs --url ... --reduced-motion --out lab/reduced
+ *   node shoot.mjs --url ... --lite --out lab/lite
+ *   node shoot.mjs --url ... --section "#story" --out lab/section
+ *
+ * --lite installs a fake navigator.connection (Save-Data on, effectiveType
+ * 2g) before the page loads, so the engine's media mode resolves to lite:
+ * clips and sequences are never fetched and posters hold. Like
+ * --reduced-motion it skips the frozen-clip check, and it reports whether the
+ * engine honoured the override (api.media, the sc-lite class, and any clip
+ * request seen during the walk). The fake is window.__scConnection: a real
+ * EventTarget, so a test can change saveData or effectiveType and dispatch
+ * a 'change' event on it.
+ *
+ * --section <selector> verifies one section-mode mount on a host page: it
+ * waits for .sc-ready on that element instead of on <html>, and discovers
+ * acts, cues, clips and the rest only inside it.
  *
  * Uses the INSTALLED Chrome, not bundled Chromium: Chromium ships without the
  * h264 decoder, so every scrub clip would silently fail to paint and the run
@@ -41,6 +56,15 @@ const STEPS = parseInt(arg("--per-act", arg("--steps", "6")), 10);  // samples P
 const W = parseInt(arg("--width", "1440"), 10);
 const H = parseInt(arg("--height", "900"), 10);
 const REDUCED = has("--reduced-motion");
+const LITE = has("--lite");
+const SECTION = arg("--section", null);
+if (has("--section") && (!SECTION || SECTION.startsWith("--"))) {
+  console.error("--section needs a selector, e.g. --section \"#story\"");
+  process.exit(1);
+}
+// Clips deliberately never fetched: reduced motion by the reader's choice,
+// lite by the connection. Every check that expects a painted clip stands down.
+const HOLD = REDUCED || LITE;
 
 const CHROME = [
   process.env.SCROLLCRAFT_CHROME,
@@ -67,7 +91,12 @@ if (!CHROME) {
 
 fs.mkdirSync(OUT, { recursive: true });
 
-const browser = await chromium.launch({ executablePath: CHROME, headless: true });
+// Pin Chrome's own connection estimate to 4G. The engine holds clips on their
+// posters when navigator.connection reads slow, and on a high-latency line
+// Chrome's live estimate drifts to "3g" mid-run (measured 600 to 750 ms RTT on
+// a 1.75 Mbps line), which silently turns an ordinary run into a lite one.
+// --lite still installs its own slow connection on top of this.
+const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ["--force-effective-connection-type=4G"] });
 const page = await browser.newPage({
   viewport: { width: W, height: H },
   deviceScaleFactor: 2,
@@ -85,6 +114,31 @@ await page.addInitScript(() => {
   Document.prototype.exitPointerLock = function () {};
 });
 
+// Lite: a connection the engine must treat as slow. A real EventTarget so a
+// test can flip the values and dispatch 'change'; defined on the navigator
+// instance, which shadows Chrome's own prototype getter.
+if (LITE) {
+  await page.addInitScript(() => {
+    class SCConnection extends EventTarget {
+      constructor() {
+        super();
+        this.saveData = true;
+        this.effectiveType = "2g";
+        this.downlink = 0.2;
+        this.rtt = 1800;
+        this.onchange = null;
+      }
+    }
+    const conn = new SCConnection();
+    Object.defineProperty(navigator, "connection", { configurable: true, value: conn });
+    window.__scConnection = conn;
+  });
+}
+// Section: every page-side query below reads this to scope itself to the mount.
+if (SECTION) await page.addInitScript((sel) => { window.__scShotScope = sel; }, SECTION);
+const liteClipRequests = [];
+if (LITE) page.on("request", (r) => { if (/\.(mp4|webm)(\?|$)/i.test(r.url())) liteClipRequests.push(r.url()); });
+
 const consoleErrors = [];
 page.on("console", (m) => { if (m.type() === "error") consoleErrors.push(m.text()); });
 page.on("pageerror", (e) => consoleErrors.push(String(e)));
@@ -96,16 +150,43 @@ page.on("requestfailed", (r) => failed.push(`${r.failure()?.errorText} ${r.url()
 // engine's own ready signal and for the faces to land, since line splitting
 // measures real line boxes and is wrong before the real face is applied.
 await page.goto(URL, { waitUntil: "domcontentloaded" });
-await page.waitForSelector("html.sc-ready", { timeout: 15000 });
+// Page mode marks <html>, section mode marks the mount root (DESIGN.md N1), so
+// the default waits for either. --section waits for its own element only.
+await waitReady();
 await page.evaluate(() => document.fonts.ready);
 await page.waitForTimeout(700);
 
+async function waitReady() {
+  if (!SECTION) {
+    await page.waitForSelector("html.sc-ready, .sc-ready", { timeout: 15000 });
+    return;
+  }
+  try {
+    await page.waitForFunction((sel) => {
+      const el = document.querySelector(sel);
+      return !!el && el.classList.contains("sc-ready");
+    }, SECTION, { timeout: 15000 });
+  } catch {
+    const why = await page.evaluate((sel) => ({
+      found: !!document.querySelector(sel),
+      html: document.documentElement.classList.contains("sc-ready"),
+    }), SECTION);
+    console.error(!why.found ? `--section ${SECTION}: no element matches that selector`
+      : why.html ? `--section ${SECTION}: the engine marked <html> sc-ready, not the section. ` +
+        "The engine predates section mode, or the root was mounted in page mode."
+      : `--section ${SECTION}: never became .sc-ready within 15s`);
+    await browser.close();
+    process.exit(1);
+  }
+}
+
 const doc = await page.evaluate(() => {
-  const world = document.querySelector('[data-sc-mode="worldflight"]');
+  const R = (window.__scShotScope && document.querySelector(window.__scShotScope)) || document;
+  const world = R.querySelector('[data-sc-mode="worldflight"]');
   return {
     height: document.body.scrollHeight,
     vh: innerHeight,
-    acts: [...document.querySelectorAll("[data-sc-act]")].map((a) => a.dataset.scAct),
+    acts: [...R.querySelectorAll("[data-sc-act]")].map((a) => a.dataset.scAct),
     world: world
       ? {
           seam: parseFloat(world.dataset.scSeam) || 0.12,
@@ -173,7 +254,8 @@ async function settle(timeout = 4000) {
 // top: the crossfade is the frame this mode is judged on, and it occupies about
 // a tenth of a viewport, so uniform sampling steps straight over it.
 const positions = WORLD ? await page.evaluate((perSeg) => {
-  const root = document.querySelector('[data-sc-mode="worldflight"]');
+  const R = (window.__scShotScope && document.querySelector(window.__scShotScope)) || document;
+  const root = R.querySelector('[data-sc-mode="worldflight"]');
   const segs = [...root.querySelectorAll("[data-sc-segment]")];
   const top = root.getBoundingClientRect().top + scrollY;
   const seam = parseFloat(root.dataset.scSeam) || 0.12;
@@ -195,9 +277,10 @@ const positions = WORLD ? await page.evaluate((perSeg) => {
   out.push(0, max);
   return [...new Set(out.map((y) => Math.max(0, Math.min(max, y))))].sort((a, b) => a - b);
 }, Math.max(2, Math.round(STEPS))) : await page.evaluate((perAct) => {
+  const R = (window.__scShotScope && document.querySelector(window.__scShotScope)) || document;
   const out = [];
   const fracs = Array.from({ length: perAct }, (_, i) => (perAct === 1 ? 0.5 : i / (perAct - 1)));
-  document.querySelectorAll("[data-sc-act]").forEach((el) => {
+  R.querySelectorAll("[data-sc-act]").forEach((el) => {
     const top = el.getBoundingClientRect().top + scrollY;
     const h = el.offsetHeight;
     const pinned = ["scrub", "pin", "pan"].includes(el.dataset.scAct);
@@ -225,7 +308,12 @@ const positions = WORLD ? await page.evaluate((perSeg) => {
     }
   });
   const max = document.body.scrollHeight - innerHeight;
-  out.push(max);
+  // A section's walk ends where the section's last viewport ends, not at the
+  // host page's footer.
+  if (R !== document) {
+    const b = R.getBoundingClientRect();
+    out.push(Math.round(b.bottom + scrollY - innerHeight));
+  } else out.push(max);
   return [...new Set(out.map((y) => Math.max(0, Math.min(max, y))))].sort((a, b) => a - b);
 }, Math.max(2, Math.round(STEPS)));
 
@@ -238,6 +326,7 @@ for (let i = 0; i < positions.length; i++) {
   const settled = await settle();
 
   const state = await page.evaluate(() => {
+    const R = (window.__scShotScope && document.querySelector(window.__scShotScope)) || document;
     // A kinetic heading carries its real opacity on the split line units; the
     // engine forces the element itself to 1. Reading the element therefore
     // reports every kinetic headline as fully present, including on frames
@@ -255,7 +344,7 @@ for (let i = 0; i < positions.length; i++) {
     // A worldflight's copy blocks are windowed against the whole track rather
     // than an act's progress, but they are the same thing to a reader: type that
     // has to arrive, hold, and leave. Grade them identically.
-    document.querySelectorAll("[data-sc-cue],[data-sc-copy]").forEach((el) => {
+    R.querySelectorAll("[data-sc-cue],[data-sc-copy]").forEach((el) => {
       const o = cueOpacity(el);
       if (o <= 0.02) return;
       // On screen, not merely non-transparent. An element parked off-viewport
@@ -265,7 +354,7 @@ for (let i = 0; i < positions.length; i++) {
       if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) return;
       vis.push({ t: (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 46), o: +o.toFixed(2) });
     });
-    const clips = [...document.querySelectorAll("video[data-sc-scrub]")].map((v) => ({
+    const clips = [...R.querySelectorAll("video[data-sc-scrub]")].map((v) => ({
       // A continuous world legitimately keeps its clip chain outside the act
       // stack, driven by the page's own scroll value rather than by an act's
       // progress. Falling back to the clip's own class keeps that case
@@ -285,13 +374,13 @@ for (let i = 0; i < positions.length; i++) {
     }));
     // Rails and wipes move without changing any cue or clip time, so without
     // these a panning section reads as dead scroll.
-    const rails = [...document.querySelectorAll("[data-sc-pan]")]
+    const rails = [...R.querySelectorAll("[data-sc-pan]")]
       .map((r) => Math.round(new DOMMatrixReadOnly(getComputedStyle(r).transform).m41));
-    const wipes = [...document.querySelectorAll("[data-sc-reveal]")]
+    const wipes = [...R.querySelectorAll("[data-sc-reveal]")]
       .map((r) => getComputedStyle(r).clipPath);
     // Which act owns the middle of the viewport right now.
     let act = "-";
-    document.querySelectorAll("[data-sc-act]").forEach((a) => {
+    R.querySelectorAll("[data-sc-act]").forEach((a) => {
       const r = a.getBoundingClientRect();
       if (r.top <= innerHeight / 2 && r.bottom >= innerHeight / 2) act = a.dataset.scAct;
     });
@@ -299,12 +388,12 @@ for (let i = 0; i < positions.length; i++) {
     // point the stage slides up the screen while its progress is still clamped
     // to 0, so the clip and cues are frozen and yet the view is very much
     // moving. Without this the run-up to every pinned act reads as dead scroll.
-    const stages = [...document.querySelectorAll("[data-sc-stage]")]
+    const stages = [...R.querySelectorAll("[data-sc-stage]")]
       .map((s) => Math.round(s.getBoundingClientRect().top));
     // Worldflight legs. Opacity IS the crossfade, so it is state, not styling:
     // two samples with the same clip times but different leg opacities are a
     // dissolve in progress, not dead scroll.
-    const segs = [...document.querySelectorAll("[data-sc-segment]")].map((el, i) => {
+    const segs = [...R.querySelectorAll("[data-sc-segment]")].map((el, i) => {
       const v = el.querySelector("video");
       return {
         i, label: el.dataset.scWaypoint || "",
@@ -313,19 +402,19 @@ for (let i = 0; i < positions.length; i++) {
         t: v ? +(v.currentTime || 0).toFixed(3) : null,
       };
     });
-    const world = document.querySelector('[data-sc-mode="worldflight"]');
+    const world = R.querySelector('[data-sc-mode="worldflight"]');
     // Bespoke fixed stages can use flow markers for document travel while all
     // visible motion happens outside the engine's pin/scrub devices. Those
     // pages publish a compact representation of their actual visual state so
     // dead-scroll verification does not silently skip the whole experience.
-    const customEls = [...document.querySelectorAll("[data-sc-verify-state]")];
+    const customEls = [...R.querySelectorAll("[data-sc-verify-state]")];
     const custom = customEls.map((el) => el.getAttribute("data-sc-verify-state") || "");
     const customHold = customEls.some((el) => el.getAttribute("data-sc-verify-hold") === "true");
     return {
       cues: vis, clips, rails, wipes, act, stages, segs, custom, customHold,
       seg: world ? +(world.style.getPropertyValue("--sc-seg") || -1) : null,
       segp: world ? +(world.style.getPropertyValue("--sc-segp") || 0) : null,
-      bg: getComputedStyle(document.documentElement).getPropertyValue("--sc-canvas").trim(),
+      bg: getComputedStyle(R === document ? document.documentElement : R).getPropertyValue("--sc-canvas").trim(),
     };
   });
 
@@ -366,6 +455,7 @@ for (let i = 0; i < positions.length; i++) {
   });
   const bare = (await page.screenshot({ type: "jpeg", quality: 80 })).toString("base64");
   const contrast = await page.evaluate(async ({ b64, dpr }) => {
+    const R = (window.__scShotScope && document.querySelector(window.__scShotScope)) || document;
     const img = new Image();
     img.src = "data:image/jpeg;base64," + b64;
     await img.decode();
@@ -385,7 +475,7 @@ for (let i = 0; i < positions.length; i++) {
       return o * m;
     };
     const out = [];
-    document.querySelectorAll("[data-sc-cue],[data-sc-copy]").forEach((el) => {
+    R.querySelectorAll("[data-sc-cue],[data-sc-copy]").forEach((el) => {
       if (cueOpacity(el) < 0.85) return;
       if (!(el.textContent || "").trim()) return;
       const r = el.getBoundingClientRect();
@@ -460,7 +550,35 @@ for (let i = 0; i < positions.length; i++) {
   }
 }
 
-fs.writeFileSync(path.join(OUT, "report.json"), JSON.stringify({ doc, report, consoleErrors, failed }, null, 2));
+// Lite: did the page actually see the slow connection, and did the engine
+// act on it? Read before writing report.json so the verdict is recorded.
+let lite = null;
+if (LITE) {
+  lite = await page.evaluate(() => {
+    const R = (window.__scShotScope && document.querySelector(window.__scShotScope)) || document;
+    const host = R === document ? document.documentElement : R;
+    const insts = (window.ScrollCraft && window.ScrollCraft.instances) || [];
+    const modes = insts.map((i) => i.media).filter((m) => typeof m === "string");
+    const c = navigator.connection;
+    return {
+      installed: !!c && c === window.__scConnection && c.saveData === true && c.effectiveType === "2g",
+      engineMedia: modes.length ? [...new Set(modes)].join(",") : null,
+      scLite: host.classList.contains("sc-lite"),
+    };
+  });
+  lite.clipRequests = [...new Set(liteClipRequests)];
+}
+
+fs.writeFileSync(path.join(OUT, "report.json"), JSON.stringify({ doc, report, consoleErrors, failed, ...(lite ? { lite } : {}) }, null, 2));
+
+if (lite) {
+  console.log(`\nLITE: navigator.connection override ${lite.installed ? "installed (saveData=true, effectiveType=2g)" : "NOT INSTALLED"}`);
+  console.log(`  engine media mode: ${lite.engineMedia || "not reported (this engine predates media mode)"}`);
+  console.log(`  sc-lite class on ${SECTION || "<html>"}: ${lite.scLite ? "present" : "ABSENT"}`);
+  console.log(lite.clipRequests.length
+    ? `  LITE NOT HONOURED: ${lite.clipRequests.length} clip request(s) during the walk:\n    ` + lite.clipRequests.join("\n    ")
+    : "  no clip was requested during the walk");
+}
 
 if (consoleErrors.length) console.log("\nCONSOLE ERRORS:\n  " + consoleErrors.join("\n  "));
 if (failed.length) console.log("\nFAILED REQUESTS:\n  " + failed.join("\n  "));
@@ -499,7 +617,7 @@ if (WORLD) {
   // broken every single run, which is how a real finding gets ignored. What
   // matters here is whether the story still reads, and the copy-window and
   // contrast passes below answer that.
-  for (let i = 1; !REDUCED && i < report.length; i++) {
+  for (let i = 1; !HOLD && i < report.length; i++) {
     const a = report[i - 1], b = report[i];
     // Tighter than the act gate: a leg is about one viewport of scroll, so a
     // quarter-viewport window would only ever compare four points per leg.
@@ -526,6 +644,7 @@ if (WORLD) {
 }
 console.log(dead.length ? `\nDEAD SCROLL between: ${dead.join(", ")}`
   : WORLD && REDUCED ? "\ndead-scroll check skipped: reduced motion holds each leg on one still frame by design"
+  : WORLD && LITE ? "\ndead-scroll check skipped: lite mode holds each leg on its poster by design"
   : "\nno dead scroll detected");
 
 // FROZEN CLIP. The reader is scrolling, a scrub stage is on screen, and its
@@ -535,7 +654,8 @@ console.log(dead.length ? `\nDEAD SCROLL between: ${dead.join(", ")}`
 // A hold on the first or last frame is always a defect. A hold in the middle
 // can be an intentional `dwell` settle, so it only counts once it outlasts one.
 // Skipped under reduced motion, where no clip is ever fetched on purpose.
-if (!REDUCED) {
+// Skipped under --lite for the same reason: posters hold by design.
+if (!HOLD) {
   const nClips = report[0]?.clips?.length || 0;
   const VIS = 0.55, EPS = 0.012, MIN = doc.vh * 0.15;
   const frozen = [];
@@ -590,14 +710,15 @@ if (WORLD) {
   // Under reduced motion no clip is ever fetched, on purpose. Every leg is
   // legitimately on its poster, and reporting that as a fault buries the one
   // finding this pass exists for: whether the story still reads without motion.
-  const posters = REDUCED ? [] : Object.entries(segPeak).filter(([, v]) => v.hasClip && !v.painted);
+  const posters = HOLD ? [] : Object.entries(segPeak).filter(([, v]) => v.hasClip && !v.painted);
   if (faint.length) console.log("\nLEGS THAT NEVER REACH FULL OPACITY:\n  " +
     faint.map(([k, v]) => `${v.op.toFixed(2)} leg ${k}`).join("\n  "));
   if (posters.length) console.log("\nLEGS STUCK ON POSTER (clip never painted):\n  " +
     posters.map(([k]) => `leg ${k}`).join("\n  "));
   if (!faint.length && !posters.length)
     console.log(`all ${Object.keys(segPeak).length} legs reach full opacity` +
-      (REDUCED ? " (posters only, as reduced motion requires)" : " and paint a real frame"));
+      (REDUCED ? " (posters only, as reduced motion requires)"
+        : LITE ? " (posters only, as lite mode requires)" : " and paint a real frame"));
 }
 
 // Cues that never reach full strength anywhere on the page. A headline peaking

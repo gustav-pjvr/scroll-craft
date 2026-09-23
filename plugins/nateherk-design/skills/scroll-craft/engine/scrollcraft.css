@@ -183,7 +183,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 
 /* scrub / sequence media */
-.sc-stage :is(video[data-sc-scrub], canvas[data-sc-sequence], .sc-stage__poster) {
+.sc-stage :is(video[data-sc-scrub], canvas[data-sc-sequence], canvas[data-sc-3d], .sc-stage__poster) {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   object-fit: cover;
@@ -412,6 +412,19 @@ video[data-sc-scrub].sc-has-clip { opacity: 1; }
      are the only things that go. */
   .sc-world__poster, [data-sc-copy] { transform: none !important; }
 }
+
+/* ----------------------------------------------------------- media mode --
+   The engine writes class .sc-lite on <html> (page mode) or on the mount root
+   (section mode) while scrub clips and image sequences are being held back:
+   Save-Data, an effectiveType of slow-2g or 2g, or 3g with a downlink of
+   0.7 Mbps or less (a high-latency 3g line with real bandwidth stays full,
+   see MEDIA MODE in scrollcraft.js). Nothing in this file
+   depends on it; the posters already hold through the same rules as reduced
+   motion. It is here for the page: a "lite" badge, a smaller hero image, or a
+   toned-down grain are all one selector away.
+
+     .sc-lite .hero-ambient { display: none; }
+*/
 
 /* --------------------------------------------------------------- mobile -- */
 @media (max-width: 860px) {

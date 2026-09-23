@@ -7,11 +7,12 @@
   structure verbatim will look like every other page that kept it verbatim,
   which is the failure this skill exists to avoid.
 
-  The act order below is one score (scrub > pin > flow > scrub > pan > pin).
-  Score YOUR journey per SKILL.md Step 2 and rearrange accordingly. The rules
-  that do carry over: four or more device families, never the same one twice in
-  a row, at most two scrub acts, and the closing act is the last element on the
-  page.
+  The act order below is one score (pin (layered stills) > pin > flow > scrub
+  > pan > pin). Score YOUR journey per SKILL.md Step 2 and rearrange
+  accordingly. The rules that do carry over: four or more device families,
+  never the same one twice in a row, no scrub act without a Video
+  justification in BRIEF.md and never more than two, and the closing act is
+  the last element on the page.
 -->
 <html lang="en">
 <head>
@@ -47,17 +48,25 @@
 
 <main id="top">
 
-  <!-- 1 · RECOGNITION: scrub -->
-  <section data-sc-act="scrub" data-sc-span="2.6" data-sc-dwell="0.34" data-sc-drift="#08090b">
-    <div data-sc-stage>
-      <img class="sc-stage__poster" src="assets/01-poster.webp" alt="">
-      <video data-sc-scrub data-sc-src="assets/01.mp4"
-             data-sc-src-mobile="assets/01-m.mp4" muted playsinline></video>
+  <!-- 1 · RECOGNITION: layered stills, pin. Four planes on data-sc-parallax
+       (plate, subject cutout, foreground, atmosphere), no scrub, no video.
+       This is the default hero; see SKILL.md Step 3 and hero-depth.md. -->
+  <section data-sc-act="pin" data-sc-span="2.6" data-sc-drift="#08090b">
+    <div data-sc-stage class="hero-planes">
+      <img class="pf-layer pf-layer--plate" data-sc-parallax="-1.4"
+           src="assets/01-plate.webp" alt="" width="2400" height="1600">
+      <img class="pf-layer pf-layer--subject" data-sc-parallax="-0.6"
+           src="assets/01-subject.webp" alt="" width="1600" height="1600">
+      <img class="pf-layer pf-layer--fore" data-sc-parallax="0.35"
+           src="assets/01-fore.webp" alt="" width="2400" height="1600">
+      <div class="pf-layer pf-layer--atmosphere" data-sc-parallax="1.1" aria-hidden="true"></div>
       <div class="sc-scrim sc-scrim--lead" aria-hidden="true"></div>
       <!-- third value 0 = greet: on screen the instant the page lands -->
-      <div class="sc-copy sc-copy--lead" data-sc-cue="0 0.78 0">
-        <h1 class="sc-display sc-display--xl" data-sc-kinetic="lines">The promise, in under nine words.</h1>
-        <p class="sc-body">One plain sentence. Twenty words at the outside.</p>
+      <!-- data-sc-kinetic only splits an element that carries its own cue,
+           so the cue sits on the heading, not on the wrapper -->
+      <div class="sc-copy sc-copy--lead">
+        <h1 class="sc-display sc-display--xl" data-sc-cue="0 0.78 0" data-sc-kinetic="lines">The promise, in under nine words.</h1>
+        <p class="sc-body" data-sc-cue="0 0.78 0">One plain sentence. Twenty words at the outside.</p>
       </div>
     </div>
   </section>
@@ -85,15 +94,16 @@
     </div>
   </section>
 
-  <!-- 4 · SUBSTANCE: scrub. The second and LAST clip. -->
+  <!-- 4 · SUBSTANCE: scrub. justified clip; delete this act if BRIEF.md has
+       no Video justification. The second and LAST clip; never a third. -->
   <section data-sc-act="scrub" data-sc-span="2.2" data-sc-dwell="0.28" data-sc-drift="#0e0f13">
     <div data-sc-stage>
       <img class="sc-stage__poster" src="assets/04-poster.webp" alt="">
       <video data-sc-scrub data-sc-src="assets/04.mp4"
              data-sc-src-mobile="assets/04-m.mp4" muted playsinline></video>
       <div class="sc-scrim sc-scrim--trail" aria-hidden="true"></div>
-      <div class="sc-copy sc-copy--trail" data-sc-cue="0.14 0.86">
-        <h2 class="sc-display sc-display--lg" data-sc-kinetic="lines">The proof, in one line.</h2>
+      <div class="sc-copy sc-copy--trail">
+        <h2 class="sc-display sc-display--lg" data-sc-cue="0.14 0.86" data-sc-kinetic="lines">The proof, in one line.</h2>
       </div>
     </div>
   </section>

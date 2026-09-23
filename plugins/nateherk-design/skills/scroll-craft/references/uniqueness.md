@@ -68,8 +68,9 @@ one entry point. If the visitor can jump, it is not one shot.
 hero, corner-anchored kinetic headline on a greet cue. Pinned close with a
 spotlight and a magnetic CTA.
 
-**Leans on:** `scrub`, `pin`, `drift`, `kinetic`. **Bans:** nothing structural,
-which is exactly why it is the default drift and why four builds landed here.
+**Leans on:** a layered hero, `pin`, `drift`, `kinetic`; `scrub` only with a
+Video justification. **Bans:** nothing structural, which is exactly why it is
+the default drift and why four builds landed here.
 
 **Use it when the interview earns it, and say in the report why the other seven
 did not fit.** This grammar now carries a burden of proof the others do not.
@@ -188,6 +189,8 @@ whole track, the `sc:waypoint` event driving a rail the page draws itself.
 unbroken flight is the most fragile thing you can build, and the seam law in
 worldflight.md section 6 is not optional. Choose this grammar only when the
 brief is literally about travel through a place, and budget for the reroll.
+This grammar carries the heaviest media budget on the list; the Video
+justification in BRIEF.md covers every leg.
 
 ---
 
@@ -422,6 +425,16 @@ these six dimensions.
 | 4 | Act-sequence shape | The device order, act count, total viewport-heights |
 | 5 | Close pattern | How the last screen behaves and what the CTA sits in |
 | 6 | Signature move | The one bespoke interaction, in a phrase |
+
+**Once a layered-stills hero is the default, dimension 3 needs a finer read.**
+The plane composition, what overtakes what, is what makes a layered hero
+distinct, not the device name: two `pin` heroes are not the same row just
+because both say `pin`.
+
+**For a multi-page site, the gate runs once for the whole site, keyed on the
+home page.** Inner pages are documents, not additional rows; see
+[site.md](site.md) for the seventh, informational "inner grammar" column that
+sits beside these six.
 
 **The gate: a new build must differ from EVERY existing row on at least 4 of the
 6.** Not 4 of 6 on average across the table. Four against each row, individually.

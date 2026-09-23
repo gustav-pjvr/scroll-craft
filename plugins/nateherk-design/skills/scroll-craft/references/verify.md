@@ -21,6 +21,43 @@ node <skill>/scripts/shoot.mjs --url http://localhost:4500 --out lab/reduced --r
 Then **read `sheet.png`**. The whole point of shooting contiguously is looking
 at the frames side by side; a folder of PNGs does not get looked at that way.
 
+## Media mode, section mode and sites
+
+`shoot.mjs --lite` installs a `navigator.connection` override (`saveData:
+true`) before the page loads and skips the frozen-clip check the same way
+`--reduced-motion` does, because in lite mode no clip is ever fetched on
+purpose. Assert what you actually expect: no request for `.mp4` or `.webm`
+during the walk, `sc-lite` on the mount, every scrub video still holding its
+poster, and cues still reaching full opacity. **A sequence under lite is not
+the same contract as a clip under lite.** `loadSeq` still fetches frame
+`start` and draws it once, so the canvas is never blank; do not read "no
+further frame requests" as a bug, and do not confuse it with the
+reduced-motion contract for sequences, which is unchanged and keeps
+animating.
+
+`shoot.mjs --section <selector>` waits for `.sc-ready` on that selector
+instead of `html.sc-ready` and scopes act discovery to it, for a build that
+mounts `ScrollCraft` on a section rather than on `document`. Without either
+flag, `shoot.mjs` waits for `html.sc-ready, .sc-ready` (either), so a page in
+either mode still verifies with the plain command.
+
+`worldflight-assert.mjs` takes the same two flags. `--lite` mirrors the
+reduced-motion block (no clip ever fetched, every leg's poster reaching full
+opacity, the copy windows opening and closing on schedule) minus the
+transform assertions, since those only make sense once a real frame has
+painted. `--section` expects the sticky-stage geometry instead of the fixed,
+full-page stage: the mode root sized at `total * vh`, the stage pinned inside
+it rather than fixed to the viewport, and the copy layer nested in the stage.
+
+For a multi-page build, run `node <skill>/scripts/site-check.mjs --url
+<home> --out lab/site` once the home page verifies on its own. It crawls
+same-origin links from the home page and checks what a single-page shoot
+cannot: shared `tokens.css` and the same header partial across pages, one
+`<h1>` and a unique `<title>` per page, no broken links, no console errors,
+no horizontal overflow at 390px wide, and, when BRIEF.md declares
+transitions, that `@view-transition` loaded. It also runs the ordinary
+`shoot.mjs` pass on the home page. See [site.md](site.md).
+
 Two setup facts that will otherwise waste a pass:
 
 - **Serve it.** `file://` blocks the Blob fetch the engine uses for clips, so

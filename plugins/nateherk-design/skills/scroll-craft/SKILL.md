@@ -1,18 +1,23 @@
 ---
 name: scroll-craft
 description: >
-  Build premium scroll-driven landing pages for service, product, food, and
-  drink brands. Plan the visitor journey, page grammar, emotional peak, and
-  bespoke signature move. Create dimensional heroes with independent visual
-  planes, restrained motion, and separate mobile composition. Use supplied
+  Build premium scroll-driven websites: a landing page or a whole site, for
+  product, service, food and drink brands, events, nonprofits, portfolios and
+  creators, and case studies. Plan the visitor journey, page grammar, emotional
+  peak, and bespoke signature move. Create dimensional heroes from layered
+  stills and independent visual planes, with video only where the brief earns
+  it, restrained motion, and separate mobile composition. Use supplied
   photos and footage or generate photoreal assets through kie.ai, write semantic
   HTML, and verify desktop, mobile, and reduced-motion scroll states visually.
   Use for "scrollcraft", "scroll craft", "layered hero", "premium hero",
   "cinematic hero", "scrollytelling", "scroll animation site", "a site where
   scrolling plays a video", "Apple-style landing page", "3D scroll world",
   "interactive landing page", "make my brand a scroll experience", "this looks
-  like a template", or requests for a distinctive website that feels like an
-  experience rather than a document.
+  like a template", "event landing page", "conference site", "festival site",
+  "nonprofit site", "donation page", "portfolio site", "creator site", "case
+  study page", "add a scroll hero to my existing site", "one animated
+  section", "multi-page scroll site", or requests for a distinctive website
+  that feels like an experience rather than a document.
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion
 ---
 
@@ -130,6 +135,11 @@ Keep it short. Eight questions, asked in one pass:
    generation cost; the answer decides what gets graded and encoded versus
    generated. "Nothing" is a fine answer and means a fully generated world.
 
+If the subject is an event, a nonprofit, a portfolio or creator, or a case
+study, also read [references/subjects.md](references/subjects.md) now and
+fold its two or three extra questions into this same pass, rather than
+interviewing twice.
+
 Write the answers into `<workspace>/builds/<name>/BRIEF.md` before any act planning, in
 their words, not paraphrased into marketing prose. Everything downstream reads
 from that file.
@@ -144,6 +154,12 @@ BRIEF.md must contain, at minimum:
 - **The completed tell-someone sentence.** "It's the site where ___", filled
   with an experience, not a device name.
 - Any authored silence, so the verification pass can tell it from dead scroll.
+- **Media budget.** The number of clips (default 0) and, for each, the Video
+  justification. The 3D route, if used, and why stills were not enough.
+- **Site shape.** One page, or a site (home plus the inner pages listed by
+  name), and the transition choice ([site.md](references/site.md)).
+- **Subject block** from [subjects.md](references/subjects.md) when the
+  subject is an event, a nonprofit, a portfolio or a case study.
 
 [references/feel.md](references/feel.md) is the spec for all four.
 
@@ -228,6 +244,11 @@ again. Ask only what you cannot sensibly default:
 5. **Art direction**: offer the worlds in [references/worlds.md](references/worlds.md)
    as a real choice, and say they can go their own way.
 
+Question 1 is also where the subject settles. If it names an event, a
+nonprofit, a portfolio or creator, or a case study, check
+[references/subjects.md](references/subjects.md) before writing the journey;
+it carries what that page needs functionally, not more interview questions.
+
 Then write the **journey** before anything else: four to seven beats, each one a
 shift in what the visitor knows or feels.
 
@@ -296,8 +317,11 @@ Checks before you build:
   however well it would have worked.
 - Four or more distinct device families. Fewer means the page has one idea.
 - No device family twice in a row.
-- At most two `scrub` acts. Video is the heaviest thing on the page, and the
-  third one stops being a surprise.
+- No `scrub` act unless BRIEF.md carries a **Video justification** for it:
+  the motion the peak needs, in one sentence, and why layered stills or CSS
+  3D cannot produce it. Never more than two, and the second needs its own
+  justification. Video is the heaviest thing on the page; the default page
+  has none.
 - No two adjacent acts carry the same feeling. If they do, one is filler.
 - One act is the peak and it has the largest span by a visible margin. The act
   before it is quieter than it is.
@@ -311,6 +335,16 @@ Checks before you build:
 ## Step 3: Generate the assets
 
 Full pipeline, prompt scaffolds and model notes: [references/assets.md](references/assets.md).
+
+**Stills first.** The default hero is a layered composition: a clean plate,
+genuine alpha cutouts, a foreground plane, and atmosphere, each on its own
+`data-sc-parallax` rate (devices.md §6, hero-depth.md). A flat subject that
+needs to turn is CSS 3D driven from `--sc-p`. A physical object that must
+rotate or re-light is the 3D route (three-d.md). Only a shot that needs real
+camera motion is a clip, and it is justified in BRIEF.md before it is
+generated. Worldflight is the heaviest page there is, because every leg is a
+clip; it is chosen only when the brief is literally one continuous journey
+and the weight is accepted in writing.
 
 Short version:
 
@@ -378,7 +412,19 @@ node <skill>/scripts/serve.mjs --root . --port 4500 &
 node <skill>/scripts/shoot.mjs --url http://localhost:4500 --out lab/shots
 node <skill>/scripts/shoot.mjs --url http://localhost:4500 --out lab/mobile --width 390 --height 844
 node <skill>/scripts/shoot.mjs --url http://localhost:4500 --out lab/reduced --reduced-motion
+node <skill>/scripts/shoot.mjs --url http://localhost:4500 --out lab/lite --lite
 ```
+
+Add `--section <selector>` in place of a full-page run when the build mounts
+`ScrollCraft` on a section rather than on `document`; the harness then waits
+on that root's own `.sc-ready` instead of `html.sc-ready`. Add `--lite` to
+prove the page holds under Save-Data and a slow connection: clips and image
+sequences never fetch, posters and cues carry the page. When the build is a
+site rather than one page, also run
+`node <skill>/scripts/site-check.mjs --url http://localhost:4500 --out lab/site`
+once the home page itself verifies; it walks every same-origin page and
+checks what a single-page shoot cannot. See [verify.md](references/verify.md)
+and [site.md](references/site.md).
 
 The harness walks each act at six positions, waits for the scrub video to
 actually settle, and reports **dead scroll**, **cues that never reach full
@@ -439,6 +485,10 @@ machine-made.
 | Gradient text, neon glow, zero-offset coloured halo shadows | Weight and size for emphasis; shadows with offset and blur |
 | Autoplaying audio, or any audio at all on a scrub clip | Strip the track. `encode.sh` already does |
 | Shipping without running Step 5 | Run Step 5 |
+| A scrub clip with no Video justification in BRIEF.md | Layered stills, CSS 3D, or the 3D route. Justify a clip or cut it |
+| A donation, registration or payment form built in the page | Link to, or embed, the platform the client actually uses |
+| A form that shows success it cannot confirm, or that submits personal data in a URL | A real POST endpoint, honest state, and a working no-JS path |
+| Impact figures, attendance or outcomes without a source the page can cite | Real, sourced numbers, or no number |
 
 ## Output
 
@@ -446,7 +496,8 @@ The build folder, including `BRIEF.md`, then a short report: the grammar and why
 the other seven lost, the signature move, the fingerprint gate result against
 each existing row, the journey, the feeling curve and the peak, the feel-check
 diff (intended curve against felt curve, and what you changed), the score table
-(device per beat), what you
+(device per beat), the site shape (one page, or a site and which inner pages),
+what you
 generated, what you verified with screenshots, and anything you could not
 verify. Say if the brief was self-authored rather than interviewed. Give the
 local URL. Keep it brief; the page is the deliverable.

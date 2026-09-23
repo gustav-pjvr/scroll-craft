@@ -49,8 +49,9 @@ so spend it on the open.
   painted, because iOS keeps a seeked-but-never-played muted video blank and
   hiding the poster on metadata alone flashes an empty stage.
 
-**At most two scrub acts per page.** The third one is no longer a surprise, and
-it is the heaviest thing on the page.
+**No scrub act by default, and never more than two.** Each one is justified
+in BRIEF.md. The device stays the anchor when the brief earns it; a page can
+be premium with none.
 
 ### Clip time is not cue time
 
@@ -297,6 +298,11 @@ characters approximately never, because it turns reading into waiting.
 </h2>
 ```
 
+`data-sc-kinetic` and `data-sc-cue` go on the **same element**. The engine
+reads kinetic off the cue element, so a kinetic heading inside a cued wrapper
+is never split: it just fades with the wrapper, and nothing reports it. Cue
+the heading itself, and give any sibling copy its own cue.
+
 Each unit slides up from behind a mask, so it enters from a clean edge rather
 than simply fading. Line masks reserve room for descenders; a mask clipped to
 the line box shears the tails off g, y, p and j, and that is the single most
@@ -321,6 +327,10 @@ travel it stops reading as depth and starts reading as a bug.
 <div class="pf-layer pf-layer--mid"   data-sc-parallax="-0.6">…</div>
 <div class="pf-layer pf-layer--front" data-sc-parallax="0.35">…</div>
 ```
+
+When the subject needs to turn past a few degrees, or its material or shading
+must change with angle, parallax planes stop being enough; that is the 3D
+module's job, not this device's. See [three-d.md](three-d.md).
 
 **The rate is in hundreds of pixels, not viewport fractions.** The engine writes
 `rate * (p - 0.5) * 100` px, so the total travel across a whole act is

@@ -41,12 +41,12 @@ portrait to reach for here.
 
 ## How many assets
 
-Fewer than you think. A six-act page needs roughly:
+Fewer than you think, and no clips by default. A six-act page needs roughly:
 
-- **2 clips.** One hero move, one texture or detail move. That is the cap from
-  SKILL.md, and it is a quality rule as much as a budget one.
-- **4 to 6 stills.** Posters for the clips, plus whatever the flow and rail acts
-  show.
+- **0 clips.** A clip is an escalation the brief justifies, up to two.
+- **4 to 8 stills.** The hero's planes (plate, cutouts, foreground,
+  atmosphere) count as stills; so do posters for any justified clip and
+  whatever the flow and rail acts show.
 
 Every clip also needs a poster, and the poster must be **the clip's own first
 frame**, not a separate generation. Pull it with ffmpeg rather than generating
@@ -213,6 +213,14 @@ it, for free and with no failure mode. Chain only when the brief is literally
 
 `encode.sh` sets a dense GOP (`-g 8` desktop, `-g 4` mobile), strips audio, and
 adds `+faststart`.
+
+**Two tiers.** `encode.sh` takes a tier: `hero` (today's numbers, the
+default) for the peak or any clip the brief justified full-frame, and `bed`
+for a clip that sits behind a scrim and copy, or a texture bed, and is never
+the subject. `bed` is calibrated by measurement, not guessed; its numbers are
+not written here because they are not measured yet. Read
+[encode-tiers.md](encode-tiers.md) once it exists for the calibrated values,
+and expect `bed` to refuse to run until it does.
 
 The reason is the whole trick: **a normal web encode places a keyframe every two
 to five seconds.** Seeking to an arbitrary time makes the decoder walk forward

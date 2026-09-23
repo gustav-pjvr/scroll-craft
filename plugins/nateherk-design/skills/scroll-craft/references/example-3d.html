@@ -1,0 +1,112 @@
+<!doctype html>
+<!--
+  scrollcraft 3D route: the minimal worked example (references/three-d.md).
+
+  Copy this beside a build that already has:
+    scrollcraft.css, scrollcraft.js, scrollcraft-3d.js   (from engine/)
+    vendor/three/                                        (node scripts/vendor-three.mjs --out vendor/three)
+    assets/model.glb                                     (YOUR model; none ships with the skill)
+    assets/poster.webp, assets/poster-m.webp             (node scripts/poster-3d.mjs, after the model is in)
+
+  Act 1 is a stills opening, because the default hero is stills. The object
+  turns in act 2, where the brief says rotation earns its place. Act 2 sits
+  more than three viewports down on purpose: nothing of three.js is fetched
+  until the reader is within three screens of it, and the verification tests
+  prove exactly that on this file.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Object | the 3D route, worked example</title>
+<meta name="description" content="A scroll act that turns a real glTF model, with an exact poster for every state that cannot run it.">
+<link rel="stylesheet" href="scrollcraft.css">
+<style>
+  :root {
+    --sc-canvas:     #0b0b0d;
+    --sc-surface:    #141417;
+    --sc-ink:        #f1efe9;
+    --sc-ink-soft:   #9d9b95;
+    --sc-accent:     #e8c26a;
+    --sc-accent-ink: #0b0b0d;
+  }
+  /* The 3D canvas takes the same box as a scrub clip or a poster. It is
+     transparent until its first frame, so the poster underneath shows through;
+     after that the engine's .sc-has-clip crossfade hides the poster. */
+  .sc-stage canvas[data-sc-3d] {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    display: block;
+  }
+  .opening { display: grid; place-items: center; text-align: center; padding-inline: var(--sc-gutter); }
+  .opening__glow {
+    position: absolute; inset: -10%;
+    background: radial-gradient(60% 50% at 50% 60%, color-mix(in oklab, var(--sc-accent) 18%, transparent), transparent 70%);
+  }
+  .opening h1 { position: relative; max-width: 14ch; }
+  .interlude { min-height: 100vh; display: grid; align-content: center; }
+  .interlude p { max-width: 36ch; }
+</style>
+</head>
+<body>
+
+<main>
+
+  <!-- 1 · stills opening: a pinned headline over a light plane. No clip. -->
+  <section data-sc-act="pin" data-sc-span="2.4" data-sc-drift="#0b0b0d">
+    <div data-sc-stage class="opening">
+      <div class="opening__glow" data-sc-parallax="-0.8" aria-hidden="true"></div>
+      <h1 class="sc-display sc-display--xl" data-sc-cue="0 0.8 0" data-sc-kinetic="lines">Made to be turned over in the hand.</h1>
+    </div>
+  </section>
+
+  <section class="sc-section interlude" data-sc-act="flow">
+    <div class="sc-wrap sc-stack" data-sc-in>
+      <h2 class="sc-display sc-display--md">Every face was drawn.</h2>
+      <p class="sc-body">A photograph shows one side. The next act shows all of them, lit as you move.</p>
+    </div>
+  </section>
+
+  <!-- 2 · the 3D act. The poster is a capture of this exact scene at p 0
+       (poster-3d.mjs), so the reduced-motion, lite and no-WebGL states are
+       the real object, not a stand-in. -->
+  <section id="object" data-sc-act="pin" data-sc-span="3" data-sc-drift="#101013">
+    <div data-sc-stage>
+      <picture>
+        <source media="(max-width: 860px)" srcset="assets/poster-m.webp">
+        <img class="sc-stage__poster" src="assets/poster.webp" alt="The object, three-quarter view, lit from the right.">
+      </picture>
+      <canvas data-sc-3d="assets/model.glb"
+              data-sc-3d-spin="-20 300"
+              data-sc-3d-tilt="-6 8"
+              data-sc-3d-light="-30 150"
+              data-sc-3d-pointer="0.04"
+              data-sc-3d-poster-p="0"
+              aria-hidden="true"></canvas>
+      <div class="sc-scrim sc-scrim--band" aria-hidden="true"></div>
+      <div class="sc-copy sc-copy--lead" data-sc-cue="0.08 0.46">
+        <h2 class="sc-display sc-display--lg">The front is only the start.</h2>
+      </div>
+      <div class="sc-copy sc-copy--trail" data-sc-cue="0.5 0.92">
+        <p class="sc-body">The light travels with the turn, so every surface shows what it is made of.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sc-section interlude" data-sc-act="flow">
+    <div class="sc-wrap sc-stack" data-sc-in>
+      <h2 class="sc-display sc-display--md">One object, every angle.</h2>
+      <p class="sc-body">Close on a real next step. This file is a mechanism example, not a page to ship.</p>
+    </div>
+  </section>
+
+</main>
+
+<script src="scrollcraft.js"></script>
+<script>ScrollCraft.mount(document.body);</script>
+<script type="module">
+  import ScrollCraft3D from './scrollcraft-3d.js';
+  ScrollCraft3D.mount(document.body);
+</script>
+</body>
+</html>

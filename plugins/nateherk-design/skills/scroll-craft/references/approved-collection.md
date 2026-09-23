@@ -63,6 +63,9 @@ floating decorations do not become meaningful because their speeds differ.
   the actual object or brand mark accurately.
 - Choose video for authored footage or a shot that needs it, not as a default
   replacement for independently moving planes.
+- See [three-d.md](three-d.md) for the vendored renderer module, its loading
+  recipe, and the decision table between layered stills, CSS 3D, the
+  renderer and video.
 
 Keep the shared engine unchanged for page-specific behavior. Write the bespoke
 choreography in page-local code. A shared progress/pointer utility is fine;

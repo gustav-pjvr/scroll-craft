@@ -10,7 +10,7 @@
       "name": "nateherk-design",
       "source": "./plugins/nateherk-design",
       "description": "scroll-craft: build a premium, scroll-driven interactive landing page. Scroll becomes the timeline, and the page verifies its own contrast, motion and accessibility by screenshotting itself.",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "author": {
         "name": "Nate Herk"
       },

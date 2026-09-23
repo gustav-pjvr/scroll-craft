@@ -15,6 +15,41 @@ Most AI website output fails in one of two directions. It is either well behaved
 
 ---
 
+## Fork additions (Gustav, 0.4.0)
+
+This is Gustav's fork of [nateherkai/scroll-craft](https://github.com/nateherkai/scroll-craft),
+MIT, based on upstream commit `0b81622`. The original skill, engine and
+approved-collection standard are Nate Herk's work and are kept intact; this
+fork widens what the skill can build and makes its pages lighter. Everything
+is additive, and existing pages behave as before.
+
+- **Stills first.** The default page has no video. Heroes are layered stills;
+  a clip needs a written justification in the brief.
+- **Lite mode.** Visitors on Save-Data or a genuinely slow connection get
+  posters instead of clips; everything else still moves.
+- **Lighter encode tiers** for clips behind copy, measured on real footage
+  ([encode-tiers.md](plugins/nateherk-design/skills/scroll-craft/references/encode-tiers.md)).
+- **An optional 3D route** (three.js, loaded only when needed, hash-verified)
+  for products that must rotate or re-light
+  ([three-d.md](plugins/nateherk-design/skills/scroll-craft/references/three-d.md)).
+- **Section mode:** one scroll section inside an existing site, without
+  touching the host page.
+- **React adapter and lifecycle API** (`destroy`, `refresh`, `rescan`), plus
+  notes for Next.js and Astro
+  ([frameworks.md](plugins/nateherk-design/skills/scroll-craft/references/frameworks.md)).
+- **Whole sites and new subjects:** home plus inner pages with page transitions
+  ([site.md](plugins/nateherk-design/skills/scroll-craft/references/site.md)),
+  and events, nonprofits, portfolios and case studies
+  ([subjects.md](plugins/nateherk-design/skills/scroll-craft/references/subjects.md)).
+
+The full list, with the measurements behind each decision, is the 2026-09-23
+entry in the [CHANGELOG](plugins/nateherk-design/skills/scroll-craft/CHANGELOG.md).
+The install steps below are upstream's; for this fork, clone it and point
+Claude Code at `plugins/nateherk-design` with `--plugin-dir`, or copy
+`plugins/nateherk-design/skills/scroll-craft/` into your skills folder.
+
+---
+
 ## New in 0.3.0: the approved ten-site standard
 
 The skill now includes the process behind ten approved immersive websites:
