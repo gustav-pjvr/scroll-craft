@@ -554,18 +554,26 @@ function mount(root, opts) {
   }
   // Runs only while some pointer is still travelling toward its target, and
   // only renders the live scene. At rest it stops; nothing loops forever.
-  function pointerTick() {
+  // POINTER_LERP is the weight per 60 Hz frame, applied by elapsed time, so the
+  // settle takes the same wall time at 30 fps on a slow phone as at 60 fps
+  // (per-frame weighting doubled it there, which reads as sluggish).
+  let pLast = 0;
+  function pointerTick(now) {
     pRaf = 0;
     if (!alive) return;
+    const dt = pLast ? Math.min(now - pLast, 100) : 1000 / 60;
+    pLast = now;
+    const k = 1 - Math.pow(1 - POINTER_LERP, dt / (1000 / 60));
     let busy = false;
     for (const S of H.scenes) {
       if (!S.pointerOn) continue;
       const dx = S.tx - S.px, dy = S.ty - S.py;
       if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) continue;
-      S.px += dx * POINTER_LERP; S.py += dy * POINTER_LERP;
+      S.px += dx * k; S.py += dy * k;
       if (S === H.live) { render(S, progress(S)); busy = true; }
     }
     if (busy) pRaf = requestAnimationFrame(pointerTick);
+    else pLast = 0;
   }
 
   // A resize clears the drawing buffer, so every ready scene re-renders once,

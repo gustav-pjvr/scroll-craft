@@ -1,6 +1,14 @@
 # Assets
 
-Generation through kie.ai, then encoding for scrubbing. All of it via
+Three sources, in order of preference: the client's own photographs and
+footage (see "Supplied photographs" and "Real footage" below), prepared with
+the session's own editing tools; generation through a tool from your
+inventory ([tools.md](tools.md)); and generation through kie.ai, documented
+here in depth because it is scripted end to end, not because it is the
+default. Every paid call, whichever route, needs the user's yes with the cost
+stated first (tools.md §3).
+
+The kie.ai route: generation, then encoding for scrubbing. All of it via
 `scripts/kie.mjs` and `scripts/encode.sh`.
 
 ```bash
@@ -111,6 +119,92 @@ build to, and because the ratio is an observation about billing rather than a
 published price that will hold. But do not refuse a justified reroll on a cap
 computed at the documented rates, and do not report a per-call sum as measured
 spend.
+
+---
+
+## Supplied photographs
+
+The client's own photographs beat generated ones: they are true, they are the
+brand, and they cost nothing. They also arrive at whatever size the camera or
+the client's website left them, so the route is mostly about pixels.
+
+**1. Pick.** Choose by what the act needs (hero-depth.md has the hero's
+separability test), then open the original and note its pixel size before
+committing it to a full-bleed plane. Filenames and thumbnails are not
+evidence (approved-collection.md §1).
+
+**2. Export at the rendered size times the device pixel ratio. Never enlarge
+in the export.** The source width you need is:
+
+```
+needed px = rendered CSS width x DPR
+rendered CSS width, for an object-fit: cover plane
+          = max(box width, box height x image aspect) x any scale on the plane
+```
+
+A full-bleed desktop plane at 1920 CSS px with a 1.05 overscan needs about
+2,016px at DPR 1 and twice that on a retina screen; ship the 2x file where the
+original allows. On a phone the portrait crop runs out first: its height must
+reach the viewport height times DPR (844 x 3 = 2,532px on a current iPhone).
+The first real build exported its hero planes 1600px wide and showed them
+1910px wide on a 1920px screen: visibly soft, on the one image every visitor
+sees. Resampling a small original bigger adds bytes, not detail. When the
+original is too small, in this order: ask for a larger original; use a real
+upscaler from the inventory (inspect it, record it, and ask first if it
+costs); recompose so the image is shown smaller, framed rather than
+full-bleed; or pick another photograph.
+
+**3. Serve it responsively.** Width descriptors and `sizes` for one crop at
+several densities, `<picture>` when the phone gets a different crop:
+
+```html
+<picture>
+  <source media="(max-width: 860px)"
+          srcset="assets/hero-plate-m-1266.webp 1266w, assets/hero-plate-m-2532.webp 2532w"
+          sizes="100vw">
+  <img src="assets/hero-plate-2016.webp"
+       srcset="assets/hero-plate-2016.webp 2016w, assets/hero-plate-4032.webp 4032w"
+       sizes="105vw" width="2016" height="1344" alt="">
+</picture>
+```
+
+Cut the phone crop at the phone viewport's own aspect so `sizes="100vw"` is
+true. Every plane of a layered hero is exported from the same crop at the same
+scale, so the planes stay registered (hero-depth.md).
+
+**4. Cutouts, plates and masks.** Cutouts and clean plates come from real
+editing tools in the session (background removal, subject selection,
+generative fill or expand; see [tools.md](tools.md)), with the user's yes
+before any client file is uploaded. Masks are the fallback when no tool
+exists, and the report says so.
+
+**5. Format.** WebP at quality 80 to 85, which keeps alpha. Strip metadata:
+camera EXIF can carry the GPS location of the shoot. Keep the originals and
+every intermediate in `<workspace>/lab/<name>/`, never in the build folder.
+With the full ffmpeg resolved as above, `min()` in the scale caps the export
+at the original's width, so the command can never enlarge:
+
+```bash
+"$FF" -y -i original.jpg -vf "scale='min(2016,iw)':-2" -map_metadata -1 -c:v libwebp -quality 82 assets/hero-plate-2016.webp
+"$FF" -y -i cutout.png   -vf "scale='min(2016,iw)':-2" -map_metadata -1 -c:v libwebp -quality 85 -pix_fmt yuva420p assets/hero-subject-2016.webp
+```
+
+**6. Credit.** Credit photographers wherever the client does. The demo
+archive credited its certification photographs, and the build carried the
+credit.
+
+**The check**, in the browser at 1920 by 1080 (DPR 1), 1440 by 900 (DPR 2)
+and 390 by 844 (DPR 3). Anything it prints is shown softer than it should be:
+
+```js
+[...document.querySelectorAll('img')].map((i) => {
+  const r = i.getBoundingClientRect();
+  if (!r.width || !i.naturalWidth) return null;
+  const shown = Math.max(r.width, r.height * i.naturalWidth / i.naturalHeight);
+  const needed = Math.round(shown * devicePixelRatio);
+  return i.naturalWidth < needed ? { src: i.currentSrc.split('/').pop(), natural: i.naturalWidth, needed } : null;
+}).filter(Boolean)
+```
 
 ---
 

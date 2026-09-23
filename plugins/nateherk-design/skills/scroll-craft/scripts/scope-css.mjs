@@ -172,9 +172,15 @@ function transformNodes(nodes, inMedia) {
     if (DROP.has(sel)) continue;
     // The second :root block (caret and accent colour) is a browser surface.
     if (sel === ":root" && /caret-color/.test(node.body)) continue;
-    if (sel === ":root" && !tokensDone && !inMedia) {
+    // The token block. The canonical sheet declares it at zero specificity
+    // (`:where(:root)`) so author tokens win in any link order; the scoped
+    // sheet keeps that property with `:where(.sc-scope)`: a host's own
+    // `.sc-scope { --sc-... }` or `#story { --sc-... }` wins wherever it is
+    // linked, while a host `:root` token still loses to the scope's own
+    // declaration (an inherited value never beats a declared one).
+    if ((sel === ":root" || sel === ":where(:root)") && !tokensDone && !inMedia) {
       tokensDone = true;
-      out.push({ type: "rule", selector: SCOPE, body: node.body });
+      out.push({ type: "rule", selector: `:where(${SCOPE})`, body: node.body });
       continue;
     }
     if (sel === ".sc-world") { out.push({ type: "rule", selector: SCOPE + " .sc-world", body: STICKY_WORLD }); continue; }

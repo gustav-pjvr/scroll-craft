@@ -21,6 +21,11 @@ node <skill>/scripts/shoot.mjs --url http://localhost:4500 --out lab/reduced --r
 Then **read `sheet.png`**. The whole point of shooting contiguously is looking
 at the frames side by side; a folder of PNGs does not get looked at that way.
 
+`lab/` in these commands is the build's scratch folder,
+`<workspace>/lab/<name>/` (SKILL.md, Bootstrap), passed as a full path.
+Shots, sheets, reports, recordings and perf output go there, never into the
+build folder that deploys.
+
 ## Media mode, section mode and sites
 
 `shoot.mjs --lite` installs a `navigator.connection` override (`saveData:
@@ -57,6 +62,18 @@ cannot: shared `tokens.css` and the same header partial across pages, one
 no horizontal overflow at 390px wide, and, when BRIEF.md declares
 transitions, that `@view-transition` loaded. It also runs the ordinary
 `shoot.mjs` pass on the home page. See [site.md](site.md).
+
+site-check also runs the TEXT UNDER CHROME check (below) on every page's six
+shots.
+
+For an event whose next date is not announced, add `--date-tba`, or pass
+`--brief <path>` and let site-check read the TBA state from BRIEF.md. It then
+asserts that no page claims a current or future date (no such Event JSON-LD,
+no `.ics`, no countdown) and that some page says the date is to be announced,
+instead of requiring the `.ics` and the JSON-LD. A past edition's Event
+JSON-LD is exempt there as an archive record. When a date is claimed (no
+flag), every Event `startDate` must carry a time and a time zone and must not
+be in the past. See subjects.md, "Date not yet announced".
 
 Two setup facts that will otherwise waste a pass:
 
@@ -143,6 +160,23 @@ Three things it gets right that a hand-rolled version usually does not:
   what scrolls under it, so its own mark is not the background behind a headline
   passing beneath it.
 
+Two more, added after the first real build reported contrast failures that
+were not real:
+
+- **Only visible ink is sampled.** The harness takes one extra screenshot per
+  visible cue to key where its glyphs actually paint. Where a later-painted
+  opaque element covers the text (a foreground plane passing in front of a
+  headline set between planes), that ink is not visible, so it drops out
+  rather than being graded against the plane.
+- **The ink is graded, not the element box.** Sampling stays inside the
+  text's own line rects (a `Range` over the text), so box padding and the
+  empty part of a wide block beside a short last line are no longer counted
+  as background under the text.
+
+The reported "worst" is now the 95th percentile of the visible ink's
+background (5th for dark type on a light ground), not the single most extreme
+pixel, so one stray highlight no longer fails a line.
+
 This is the check no static audit can do: the frame under a headline changes as
 the clip scrubs, so text can clear 4.5:1 against the poster and fail badly three
 hundred pixels later.
@@ -212,6 +246,26 @@ Real, and worth knowing before you trust a green run:
   scroll detected`. Measure `rail.scrollWidth - innerWidth` yourself; a green run
   does not cover it. See devices.md §3.
 
+**TEXT UNDER CHROME**: text whose ink is overlapped by a `position: fixed` or
+`sticky` element painted above it, at the first frame and at every sampled
+position where that text is meant to be visible (its cue at or near full
+opacity). The report names the text and the covering element. Text in
+ordinary flow scrolling under the bar is normal and is not reported. Fix by
+clearing the bar's height (taste.md, "Fixed chrome"), not by hiding the bar.
+The first real build's hero eyebrow sat clipped under its header through ten
+rounds of shots, because nothing reported it and nobody looked. In
+`report.json` the findings are under `chrome`, and the first frame's under
+`firstChrome`. site-check runs the same check on each page's six shots.
+
+**NEAR-STATIC PINNED ACT**: a pinned act at least 0.4 viewports long whose
+visible layers travel less than 5% of the viewport across its span, the
+failure a dead-scroll check misses because something technically moves by a
+pixel or two. A hero whose planes travel about 1% of the viewport across its
+pin is the case that prompted it. In `report.json` it is under `stuck`. The
+5% line is the harness's floor, not the target: a hero should clear the
+larger separation in hero-depth.md, and the contact sheet is still the judge
+of whether it reads as a scene.
+
 **Console errors and failed requests**: a 404 on a clip degrades to a poster
 silently, which looks fine and is not.
 
@@ -244,6 +298,32 @@ transform parks it on its first screenful. The engine now hands the stage back
 as a native scroll region, so confirm on the sheet that the rail shows real
 content and that items past the fold can still be got to. Nothing in the harness
 reports this; it reads as a page behaving correctly.
+
+**Phone-class CPU.** The build machine is not the phone. Throttle Chrome's
+CPU 4x, which approximates a mid-range phone, and scroll every act again. In
+DevTools: Performance panel, CPU: 4x slowdown, record while scrolling, then
+look for long tasks and runs of dropped frames inside each act. Scripted, in
+the same Playwright session the harness uses:
+
+```js
+const cdp = await context.newCDPSession(page);
+await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+// scroll through each act in wheel-sized steps and record frame intervals
+// with requestAnimationFrame; a DevTools-protocol tool from your inventory
+// can capture a full performance trace the same way
+```
+
+Look hardest at bespoke canvas and page-local JS: that is where the first real
+build's frame time went (a peak repainting up to 5,821 arcs every frame).
+Frames over about 25ms that cluster inside one act are the stutter a phone
+reader feels; a run that is clean at 1x and hitches at 4x is the finding.
+Fix it with the incremental-drawing rules in taste.md, "Motion feel", then
+re-run at 4x. Report both runs.
+
+**Screen recordings.** Record the hero and the peak at a normal scroll pace
+and watch them back (feel.md §6). A contact sheet shows positions; a
+recording shows whether the page answers the hand, which is the part the
+first real build got wrong while every sheet looked fine.
 
 **Credit accounting.** `kie.mjs probe` reports a balance, not a delta, so a
 build's spend is a before-and-after subtraction. That subtraction is only valid
@@ -351,6 +431,12 @@ The engine helps here but does not finish the job, and the gap is specific:
   the act's top, at progress 0, cue opacity 0. The control is on screen and
   still invisible.
 
+- **It handles a `pan` rail.** Focus inside `[data-sc-pan]` scrolls the page
+  to where that item is centred in the rail's travel, and under reduced
+  motion brings it into view inside the native scroll region (devices.md §3).
+  Tab through the rail anyway. Pages no longer need their own rail focus
+  handler.
+
 **On a pinned act, park the act at the progress where the focused element's own
 cue is open.** That is page-local work, because only the page knows which cue
 belongs to which control, and because act progress runs through `dwell()` when
@@ -394,6 +480,10 @@ until it was measured.
 | The hero clip frozen on a real iPhone, later clips fine, every probe green | iOS never paints an unplayed muted video, and the one-shot gesture prime was spent while the hero was still downloading. The engine now primes per clip at `loadedmetadata` and retries on every gesture, including `touchend` |
 | A phone clip soft and stuttering while the same file is smooth on desktop | A landscape mobile encode in a portrait viewport: cover-fit decoded the full frame and threw three quarters of it away. Cut the phone clips portrait from the masters (see assets.md) |
 | Four rounds of mobile fixes verified green, phone still broken | Headless Chrome cannot reproduce the iOS decoder, Low Power Mode, or touch. Deploy `references/device-diag.html` beside the site on the first mobile report and let the phone answer |
+| A page measured at 60fps that its owner still called laggy | Feel, not frame rate: hero planes travelling about 1% of the viewport across their pin, flow reveals starting a 620ms fade after the content was already on screen, and a canvas redrawn from scratch every frame. See taste.md, Motion feel |
+| A hero eyebrow clipped under the fixed header for ten rounds of shots | First-screen content positioned without the header's height. Clear `--sc-chrome-h` (taste.md, Fixed chrome) |
+| A soft hero on a sharp screen | Photos exported 1600px wide and shown 1910px wide. Export at rendered size times DPR (assets.md, Supplied photographs) |
+| Hero planes cut with hand masks while the session had background removal | No tool inventory. Take it in Bootstrap (tools.md) |
 
 The first three are invisible to every check except looking at rendered output.
 That is the argument for this whole pass.

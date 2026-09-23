@@ -38,6 +38,11 @@ page.
 <script>ScrollCraft.mount(document.body);</script>
 ```
 
+`references/template.html` loads the engine with `defer` instead and mounts
+on `DOMContentLoaded`, which keeps the parser unblocked; that is the shape to
+start a new page from. It is a loading shape only: it does not make
+cross-document View Transitions run (site.md §5).
+
 One section on an existing site:
 
 ```html
@@ -62,8 +67,10 @@ As a module (no global needed in your own code):
 
 `scrollcraft.esm.js` imports `scrollcraft.js` beside it, so copy both.
 
-Multi-page sites with cross-document View Transitions need no lifecycle code;
-see `site.md`. A site that swaps content without a page load (Barba, htmx,
+Multi-page sites with cross-document View Transitions need no lifecycle code,
+provided each page declares `@view-transition { navigation: auto; }` inline
+in its `<head>`: declared only in an external stylesheet, Chrome skips the
+transition on a page that also loads the engine (see `site.md` §5). A site that swaps content without a page load (Barba, htmx,
 Turbo) calls `api.destroy()` before the swap and `ScrollCraft.mount()` after.
 
 ---

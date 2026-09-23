@@ -317,6 +317,13 @@ const positions = WORLD ? await page.evaluate((perSeg) => {
   return [...new Set(out.map((y) => Math.max(0, Math.min(max, y))))].sort((a, b) => a - b);
 }, Math.max(2, Math.round(STEPS)));
 
+// The first screen, before any scroll: nothing has scrolled under the header
+// yet, so ANY visible text overlapped by fixed or sticky chrome is a defect
+// (the eyebrow clipped under a fixed bar is the case this exists for).
+await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
+await page.waitForTimeout(300);
+const firstChrome = await page.evaluate(underChrome, { all: true, scope: SECTION });
+
 const report = [];
 for (let i = 0; i < positions.length; i++) {
   const y = positions[i];
@@ -437,6 +444,25 @@ for (let i = 0; i < positions.length; i++) {
   // whatever scrolls under it, so its own mark is not the background behind a
   // headline passing beneath it, and leaving it in reports a spurious failure
   // on an act that is fine.
+  //
+  // Ink mask. Grading every pixel of the element box graded things that are not
+  // behind the text: the gaps between lines, and a foreground plane painted OVER
+  // part of a headline (a cut-out figure or grass standing in front of the
+  // type). So first repaint every gradable cue's glyphs in a key colour and shoot
+  // that frame: a pixel counts as visible ink only where the key colour actually
+  // shows, inside the text's own line boxes (Range client rects). The hidden-text
+  // frame below is then sampled at exactly those pixels.
+  const inked = await page.evaluate(markInk);
+  let inkShot = null;
+  if (inked) {
+    const tag = await page.addStyleTag({ content: inkCss() });
+    inkShot = (await page.screenshot({ type: "png", scale: "css" })).toString("base64");
+    await tag.evaluate((n) => n.remove());
+  }
+  // Chrome over text is its own finding (TEXT UNDER CHROME), measured while the
+  // page is exactly as the reader sees it.
+  const chrome = await page.evaluate(underChrome, { all: false, scope: SECTION });
+  const stuck = await page.evaluate(stuckAct, SECTION);
   await page.evaluate(() => {
     document.querySelectorAll("body *").forEach((el) => {
       if (getComputedStyle(el).position !== "fixed") return;
@@ -453,14 +479,23 @@ for (let i = 0; i < positions.length; i++) {
     content: "[data-sc-cue],[data-sc-cue] *,[data-sc-copy],[data-sc-copy] *," +
              "[data-sc-shot-fixed]{visibility:hidden!important}",
   });
-  const bare = (await page.screenshot({ type: "jpeg", quality: 80 })).toString("base64");
-  const contrast = await page.evaluate(async ({ b64, dpr }) => {
+  const bare = (await page.screenshot({ type: "jpeg", quality: 80, scale: "css" })).toString("base64");
+  const contrast = await page.evaluate(async ({ b64, ink }) => {
     const R = (window.__scShotScope && document.querySelector(window.__scShotScope)) || document;
-    const img = new Image();
-    img.src = "data:image/jpeg;base64," + b64;
-    await img.decode();
-    const c = document.createElement("canvas");
-    const g = c.getContext("2d", { willReadFrequently: true });
+    const decode = async (src) => {
+      const im = new Image();
+      im.src = src;
+      await im.decode();
+      const cv = document.createElement("canvas");
+      cv.width = im.width; cv.height = im.height;
+      const cx = cv.getContext("2d", { willReadFrequently: true });
+      cx.drawImage(im, 0, 0);
+      return { w: im.width, h: im.height, d: cx.getImageData(0, 0, im.width, im.height).data };
+    };
+    const back = await decode("data:image/jpeg;base64," + b64);
+    const mask = ink ? await decode("data:image/png;base64," + ink) : null;
+    // Screenshots are CSS-pixel sized (scale: "css"), so one CSS px is one pixel.
+    const isKey = (i) => mask.d[i] > 200 && mask.d[i + 1] < 70 && mask.d[i + 2] > 200;
     const lum = (r, gr, b) => {
       const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
       return 0.2126 * f(r) + 0.7152 * f(gr) + 0.0722 * f(b);
@@ -475,30 +510,7 @@ for (let i = 0; i < positions.length; i++) {
       return o * m;
     };
     const out = [];
-    R.querySelectorAll("[data-sc-cue],[data-sc-copy]").forEach((el) => {
-      if (cueOpacity(el) < 0.85) return;
-      if (!(el.textContent || "").trim()) return;
-      const r = el.getBoundingClientRect();
-      if (r.width < 8 || r.height < 8 || r.bottom < 0 || r.top > innerHeight) return;
-      // Clamp the sampled rect to the viewport. The part of a pinned act's copy
-      // that has scrolled above the fold is not on screen, so whatever sits in
-      // those pixels is not the background behind anything the reader can see.
-      const vl = Math.max(0, r.left), vt = Math.max(0, r.top);
-      const vr = Math.min(innerWidth, r.right), vb = Math.min(innerHeight, r.bottom);
-      if (vr - vl < 8 || vb - vt < 8) return;
-      const x = vl * dpr, y2 = vt * dpr;
-      const w = Math.min((vr - vl) * dpr, img.width - x), h = Math.min((vb - vt) * dpr, img.height - y2);
-      if (w < 2 || h < 2) return;
-      c.width = 32; c.height = 16;
-      g.drawImage(img, x, y2, w, h, 0, 0, 32, 16);
-      const d = g.getImageData(0, 0, 32, 16).data;
-      let maxL = 0, minL = 1, sum = 0, n = 0;
-      for (let k = 0; k < d.length; k += 4) {
-        const L = lum(d[k], d[k + 1], d[k + 2]);
-        if (L > maxL) maxL = L;
-        if (L < minL) minL = L;
-        sum += L; n++;
-      }
+    R.querySelectorAll("[data-sc-shot-ink]").forEach((el) => {
       const cs = getComputedStyle(el);
       const fg = cs.color.match(/[\d.]+/g).map(Number);
       const fl = lum(fg[0], fg[1], fg[2]);
@@ -518,30 +530,65 @@ for (let i = 0; i < positions.length; i++) {
         });
         return;
       }
+      // The background behind each VISIBLE ink pixel: key colour in the ink
+      // frame, inside the text's own line boxes, clamped to the viewport. The
+      // part of a pinned act's copy above the fold, glyphs a foreground plane
+      // covers, and the empty box around the lines are all left out, because
+      // none of them is the background behind anything the reader can see.
+      if (!mask) return;
+      const Ls = [];
+      const seen = new Set();
+      const tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let n; (n = tw.nextNode());) {
+        if (!n.nodeValue.trim()) continue;
+        const rg = document.createRange();
+        rg.selectNodeContents(n);
+        for (const b of rg.getClientRects()) {
+          const x0 = Math.max(0, Math.floor(b.left)), x1 = Math.min(mask.w, Math.ceil(b.right));
+          const y0 = Math.max(0, Math.floor(b.top)), y1 = Math.min(mask.h, Math.ceil(b.bottom));
+          for (let yy = y0; yy < y1; yy++) {
+            for (let xx = x0; xx < x1; xx++) {
+              const k = (yy * mask.w + xx) * 4;
+              if (seen.has(k) || !isKey(k)) continue;
+              seen.add(k);
+              Ls.push(lum(back.d[k], back.d[k + 1], back.d[k + 2]));
+            }
+          }
+        }
+      }
+      // Fewer than a few glyph strokes' worth of visible ink: the line is
+      // covered or clipped, and there is nothing a reader sees to grade.
+      if (Ls.length < 12) return;
+      Ls.sort((a, b) => a - b);
+      const at = (q) => Ls[Math.min(Ls.length - 1, Math.floor(q * (Ls.length - 1)))];
+      const meanL = Ls.reduce((s, v) => s + v, 0) / Ls.length;
       // Pick the direction from the foreground. Light type on a dark page fails
       // on the brightest patch under it; dark type on a light page (a high-key
       // world, ink over media) fails on the DARKEST patch, and grading that
-      // against maxL is the most lenient reading available, so a page can report
-      // clean over text that is failing. Compare the ink to the mean background
-      // and grade against whichever extreme is on the ink's own side.
-      const meanL = sum / n;
+      // against the brightest is the most lenient reading available, so a page
+      // can report clean over text that is failing. Compare the ink to the mean
+      // background and grade against whichever extreme is on the ink's own side.
+      // The extreme is the 95th (or 5th) percentile of the ink pixels, so a
+      // handful of stray pixels at a glyph edge cannot decide the verdict.
       const dark = fl < meanL;
       out.push({
         t: (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 40),
         dir: dark ? "dark-on-light" : "light-on-dark",
-        worst: +ratio(fl, dark ? minL : maxL).toFixed(2),
+        worst: +ratio(fl, dark ? at(0.05) : at(0.95)).toFixed(2),
         mean: +ratio(fl, meanL).toFixed(2),
+        px: Ls.length,
       });
     });
     return out;
-  }, { b64: bare, dpr: 2 });
+  }, { b64: bare, ink: inkShot });
   await page.evaluate(() => {
     const t = [...document.querySelectorAll("style")].pop();
     if (t && t.textContent.includes("data-sc-cue")) t.remove();
     document.querySelectorAll("[data-sc-shot-fixed]").forEach((el) => el.removeAttribute("data-sc-shot-fixed"));
+    document.querySelectorAll("[data-sc-shot-ink]").forEach((el) => el.removeAttribute("data-sc-shot-ink"));
   });
 
-  report.push({ i, y, pct: +(p * 100).toFixed(0), settled, contrast, ...state });
+  report.push({ i, y, pct: +(p * 100).toFixed(0), settled, contrast, ...state, chrome, stuck });
   if (WORLD) {
     console.log(`  ${name}  settled=${settled}  copy=${state.cues.length}  leg=${state.seg}@${state.segp}  ` +
       `legs=${state.segs.map((g) => `${g.op > 0.002 ? (g.painted ? g.t : "poster") : "-"}${g.op > 0.002 && g.op < 0.998 ? "*" + g.op : ""}`).join(",")}`);
@@ -569,7 +616,7 @@ if (LITE) {
   lite.clipRequests = [...new Set(liteClipRequests)];
 }
 
-fs.writeFileSync(path.join(OUT, "report.json"), JSON.stringify({ doc, report, consoleErrors, failed, ...(lite ? { lite } : {}) }, null, 2));
+fs.writeFileSync(path.join(OUT, "report.json"), JSON.stringify({ doc, report, consoleErrors, failed, firstChrome, ...(lite ? { lite } : {}) }, null, 2));
 
 if (lite) {
   console.log(`\nLITE: navigator.connection override ${lite.installed ? "installed (saveData=true, effectiveType=2g)" : "NOT INSTALLED"}`);
@@ -743,6 +790,9 @@ if (thin.length) console.log("\nCONTRAST THIN (3:1 to 4.5:1, ok for large displa
 if (!fails.length && !thin.length && Object.keys(worstBy).length)
   console.log("\ncontrast over media: all cues clear 4.5:1 at their worst frame");
 
+reportChrome();
+reportMotion();
+
 await browser.close();
 
 // Contact sheet. The point of shooting contiguously is to look at the frames
@@ -774,3 +824,301 @@ if (FFMPEG) {
 }
 
 console.log(`\nshots + report.json in ${OUT}`);
+
+// ===================================================================== helpers
+// Function declarations, hoisted; the in-page ones are handed to
+// page.evaluate, so they may use nothing from this module's scope.
+
+// Ink frame: every gradable cue's glyphs in one key colour, fattened by a
+// stroke so thin type still yields solid key pixels, with nothing animating.
+function inkCss() {
+  return "[data-sc-shot-ink],[data-sc-shot-ink] *{color:#ff00ff!important;" +
+  "-webkit-text-fill-color:#ff00ff!important;-webkit-text-stroke:2px #ff00ff!important;" +
+  "text-shadow:none!important;transition:none!important}";
+}
+
+// In page: tag the cues the contrast pass grades (on screen, text, at or near
+// full strength). Returns how many were tagged.
+function markInk() {
+  const R = (window.__scShotScope && document.querySelector(window.__scShotScope)) || document;
+  const cueOpacity = (el) => {
+    const o = parseFloat(getComputedStyle(el).opacity) || 0;
+    const units = el.querySelectorAll(".sc-split__i");
+    if (!units.length) return o;
+    let m = 0;
+    units.forEach((u) => { m = Math.max(m, parseFloat(getComputedStyle(u).opacity) || 0); });
+    return o * m;
+  };
+  let n = 0;
+  R.querySelectorAll("[data-sc-cue],[data-sc-copy]").forEach((el) => {
+    if (cueOpacity(el) < 0.85) return;
+    if (!(el.textContent || "").trim()) return;
+    const r = el.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8 || r.bottom < 0 || r.top > innerHeight) return;
+    el.setAttribute("data-sc-shot-ink", "");
+    n++;
+  });
+  return n;
+}
+
+// In page: text whose ink is overlapped by fixed or sticky chrome painted
+// above it. `all` checks every visible text node (the first screen); otherwise
+// only cues that are meant to be visible where they are: a pinned act's cues
+// at or near full strength, and worldflight copy blocks. Flow content that
+// scrolls under a header while it is read is normal and is not reported.
+function underChrome({ all, scope }) {
+  const R = (scope && document.querySelector(scope)) || document;
+  const vw = innerWidth, vh = innerHeight;
+  const snip = (el) => (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 46);
+  const name = (el) => el.tagName.toLowerCase() + (el.id ? "#" + el.id : "") +
+    (typeof el.className === "string" && el.className.trim() ? "." + el.className.trim().split(/\s+/).slice(0, 2).join(".") : "");
+  const alpha = (c) => { const m = (c || "").match(/[\d.]+/g); return !m || m.length < 3 ? 0 : m.length < 4 ? 1 : +m[3]; };
+  const textRects = (root) => {
+    const out = [];
+    const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let n; (n = tw.nextNode());) {
+      if (!n.nodeValue.trim()) continue;
+      const rg = document.createRange();
+      rg.selectNodeContents(n);
+      for (const b of rg.getClientRects()) if (b.width >= 2 && b.height >= 6) out.push({ b, node: n });
+    }
+    return out;
+  };
+
+  // Chrome: fixed or sticky, visible, not the engine's own stages or a
+  // full-screen backdrop, and what it actually paints (its box when it has a
+  // fill, otherwise only its text and images).
+  const chrome = [];
+  for (const el of document.querySelectorAll("body *")) {
+    const cs = getComputedStyle(el);
+    if (cs.position !== "fixed" && cs.position !== "sticky") continue;
+    if (el.matches("[data-sc-stage],.sc-stage,[data-sc-world],[data-sc-world-copy],.sc-world,.sc-grain,[data-sc-progress]")) continue;
+    if (el.closest("[data-sc-world],[data-sc-world-copy],[data-sc-stage]")) continue;
+    if (cs.visibility === "hidden" || cs.display === "none" || (parseFloat(cs.opacity) || 0) < 0.1) continue;
+    const r = el.getBoundingClientRect();
+    const iw = Math.min(r.right, vw) - Math.max(r.left, 0), ih = Math.min(r.bottom, vh) - Math.max(r.top, 0);
+    if (iw < 1 || ih < 1) continue;
+    if (iw * ih > 0.6 * vw * vh) continue;
+    const solid = alpha(cs.backgroundColor) >= 0.3 || cs.backgroundImage !== "none" ||
+      (cs.backdropFilter && cs.backdropFilter !== "none");
+    const paints = solid ? [r] : textRects(el).map((x) => x.b)
+      .concat([...el.querySelectorAll("img,svg,video,canvas")].map((m) => m.getBoundingClientRect()));
+    chrome.push({ el, paints });
+  }
+  if (!chrome.length) return [];
+  const inChrome = (n) => chrome.some((c) => c.el.contains(n));
+
+  const effOpacity = (el) => {
+    let o = 1;
+    for (let e = el; e && e !== document.documentElement; e = e.parentElement) {
+      const cs = getComputedStyle(e);
+      if (cs.visibility === "hidden" || cs.display === "none") return 0;
+      o *= parseFloat(cs.opacity);
+    }
+    return o;
+  };
+  const cueOpacity = (el) => {
+    const o = parseFloat(getComputedStyle(el).opacity) || 0;
+    const units = el.querySelectorAll(".sc-split__i");
+    if (!units.length) return o;
+    let m = 0;
+    units.forEach((u) => { m = Math.max(m, parseFloat(getComputedStyle(u).opacity) || 0); });
+    return o * m;
+  };
+
+  let owners;
+  if (all) owners = [R === document ? document.body : R];
+  else {
+    // Only while the act is actually stuck: on its entry and exit slides the
+    // whole stage scrolls, and text passing under a header then is normal.
+    const stuck = (act) => {
+      const r = act.getBoundingClientRect();
+      const s = (act.querySelector("[data-sc-stage]") || act).getBoundingClientRect();
+      return r.top <= 1 && r.bottom >= vh - 1 && Math.abs(s.top) <= 1;
+    };
+    owners = [...R.querySelectorAll("[data-sc-cue],[data-sc-copy]")].filter((el) => {
+      const act = el.closest("[data-sc-act]");
+      const pinned = el.hasAttribute("data-sc-copy") ||
+        (act && ["scrub", "pin", "pan"].includes(act.dataset.scAct) && stuck(act));
+      return pinned && cueOpacity(el) >= 0.85;
+    });
+  }
+
+  const hits = new Map();
+  const probe = document.createElement("style");
+  probe.textContent = "*{pointer-events:auto!important}";
+  document.head.appendChild(probe);
+  try {
+    for (const owner of owners) {
+      for (const { b, node } of textRects(owner)) {
+        const pe = node.parentElement;
+        if (!pe || inChrome(pe) || effOpacity(pe) < 0.5) continue;
+        if (b.bottom <= 0 || b.top >= vh || b.right <= 0 || b.left >= vw) continue;
+        // A line box carries leading above and below the glyphs; trim it so a
+        // header that only touches the leading is not called a collision.
+        const t = b.top + b.height * 0.15, bt = b.bottom - b.height * 0.15;
+        for (const c of chrome) {
+          for (const pr of c.paints) {
+            const ix = Math.min(b.right, pr.right) - Math.max(b.left, pr.left);
+            const iy = Math.min(bt, pr.bottom) - Math.max(t, pr.top);
+            if (ix < 2 || iy < 2) continue;
+            // Painted above the text? Hit-test the middle of the overlap.
+            const cx = Math.max(0, Math.min(vw - 1, Math.max(b.left, pr.left) + ix / 2));
+            const cy = Math.max(0, Math.min(vh - 1, Math.max(t, pr.top) + iy / 2));
+            const stack = document.elementsFromPoint(cx, cy);
+            const ci = stack.findIndex((e) => c.el === e || c.el.contains(e));
+            const ti = stack.findIndex((e) => e === pe || pe.contains(e) || e.contains(pe));
+            if (ci === -1 || (ti !== -1 && ti < ci)) continue;
+            const blk = pe.closest("[data-sc-cue],[data-sc-copy],p,h1,h2,h3,h4,h5,h6,li,a,figcaption,blockquote,span") || pe;
+            const key = snip(blk) + "|" + name(c.el);
+            const prev = hits.get(key);
+            if (!prev || prev.px < iy) hits.set(key, { t: snip(blk), by: name(c.el), px: Math.round(iy) });
+          }
+        }
+      }
+    }
+  } finally { probe.remove(); }
+  return [...hits.values()];
+}
+
+// In page: the pinned act whose stage is stuck right now, with what could make
+// it look alive: its large visual layers (geometry and opacity), clip times,
+// rail offsets, cue strengths, and any published verify state.
+function stuckAct(scope) {
+  const R = (scope && document.querySelector(scope)) || document;
+  const vw = innerWidth, vh = innerHeight;
+  const acts = [...R.querySelectorAll("[data-sc-act]")];
+  // Stuck means the stage itself sits at the top of the viewport. An act whose
+  // stage fails to pin (the engine warns about that) is never "stuck".
+  const k = acts.findIndex((a) => {
+    if (!["scrub", "pin", "pan"].includes(a.dataset.scAct)) return false;
+    const r = a.getBoundingClientRect();
+    const s = (a.querySelector("[data-sc-stage]") || a).getBoundingClientRect();
+    return r.top <= 1 && r.bottom >= vh - 1 && Math.abs(s.top) <= 1;
+  });
+  if (k < 0) return null;
+  const a = acts[k];
+  const st = a.querySelector("[data-sc-stage]") || a;
+  const eff = (el) => {
+    let o = 1;
+    for (let e = el; e && e !== a; e = e.parentElement) o *= parseFloat(getComputedStyle(e).opacity);
+    return o;
+  };
+  const layers = [];
+  [...st.querySelectorAll("*")].forEach((el, i) => {
+    const tag = el.tagName;
+    const bgi = getComputedStyle(el).backgroundImage;
+    const media = ["IMG", "VIDEO", "CANVAS", "svg"].includes(tag) || /url\(/.test(bgi);
+    // A gradient-only layer (light, mist, scrim) is atmosphere: its fade is not
+    // the picture answering the scroll, so it is kept but marked.
+    if (!media && bgi === "none") return;
+    const r = el.getBoundingClientRect();
+    const iw = Math.min(r.right, vw) - Math.max(r.left, 0), ih = Math.min(r.bottom, vh) - Math.max(r.top, 0);
+    if (iw <= 0 || ih <= 0 || iw * ih < 0.25 * vw * vh) return;
+    layers.push({ i, media, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, o: +eff(el).toFixed(3),
+      vx0: Math.max(r.left, 0), vy0: Math.max(r.top, 0), vx1: Math.min(r.right, vw), vy1: Math.min(r.bottom, vh) });
+  });
+  const cues = [...a.querySelectorAll("[data-sc-cue]")].map((el) => {
+    const o = parseFloat(getComputedStyle(el).opacity) || 0;
+    const units = el.querySelectorAll(".sc-split__i");
+    if (!units.length) return +o.toFixed(3);
+    let m = 0;
+    units.forEach((u) => { m = Math.max(m, parseFloat(getComputedStyle(u).opacity) || 0); });
+    return +(o * m).toFixed(3);
+  });
+  return {
+    k, device: a.dataset.scAct,
+    label: `act ${k + 1}` + (a.id ? " #" + a.id
+      : ((typeof a.className === "string" ? a.className : "").split(/\s+/).filter((c) => c && !/^sc-/.test(c)).slice(0, 1).map((c) => " ." + c)[0] || "")),
+    layers, cues,
+    clips: [...a.querySelectorAll("video[data-sc-scrub]")].map((v) => +(v.currentTime || 0).toFixed(3)),
+    rails: [...a.querySelectorAll("[data-sc-pan]")].map((r) => Math.round(new DOMMatrixReadOnly(getComputedStyle(r).transform).m41)),
+    custom: [...a.querySelectorAll("[data-sc-verify-state]")].map((e) => e.getAttribute("data-sc-verify-state") || ""),
+  };
+}
+
+// TEXT UNDER CHROME: the first screen, plus every sample where a pinned cue at
+// full strength sat under the header or other fixed chrome.
+function reportChrome() {
+  const rows = new Map();
+  (firstChrome || []).forEach((h) => rows.set(h.t + "|" + h.by, { ...h, where: ["first screen"] }));
+  report.forEach((s) => (s.chrome || []).forEach((h) => {
+    const k = h.t + "|" + h.by;
+    const r = rows.get(k) || { ...h, where: [] };
+    r.px = Math.max(r.px, h.px);
+    if (!r.where.includes(`${s.pct}%`)) r.where.push(`${s.pct}%`);
+    rows.set(k, r);
+  }));
+  if (!rows.size) { console.log("\ntext clears fixed and sticky chrome on the first screen and in every pinned act"); return; }
+  console.log("\nTEXT UNDER CHROME (ink overlapped by fixed or sticky chrome while it is meant to be seen):\n  " +
+    [...rows.values()].map((r) => `"${r.t}" under ${r.by}, ${r.px}px deep, at ${r.where.slice(0, 6).join(", ")}${r.where.length > 6 ? " ..." : ""}`).join("\n  ") +
+    "\n  Fix: clear the header height on the first screen (a --sc-chrome-h token, safe top padding, scroll-padding-top).");
+}
+
+// MOTION FEEL: a pinned act the reader scrolls through while nothing visible
+// answers. Measured only while the stage is stuck (entry and exit slides
+// excluded) and only across at least MOTION_MIN_TRAVEL viewports of scroll.
+function reportMotion() {
+  const MOTION_MIN_TRAVEL = 0.4;   // viewports of pinned scroll before a verdict
+  const MOTION_MIN_LAYER = 0.05;   // largest visible layer travel, fraction of the viewport ("a few percent" is a still)
+  const MOTION_MIN_FADE = 0.25;    // largest layer opacity change
+  if (WORLD) return;
+  const groups = new Map();
+  report.forEach((s) => { if (s.stuck) groups.set(s.stuck.k, [...(groups.get(s.stuck.k) || []), s]); });
+  const flagged = [], checked = [];
+  for (const [, ss] of groups) {
+    if (ss.length < 3) continue;
+    const travel = (ss[ss.length - 1].y - ss[0].y) / doc.vh;
+    if (travel < MOTION_MIN_TRAVEL) continue;
+    const a0 = ss[0].stuck;
+    // Largest VISIBLE displacement of a layer's content, in px: map each corner
+    // of the layer's on-screen part through the layer's shift and scale and
+    // take the furthest move. A cover photo scaled 2% moves its off-screen
+    // edges a lot and what the reader sees barely at all; this counts the
+    // latter. Fades count only for photo, video and canvas layers.
+    let move = 0, fade = 0;
+    for (const L of a0.layers) {
+      for (const s of ss) {
+        const M = s.stuck.layers.find((x) => x.i === L.i);
+        if (!M) continue;
+        const sx = M.w / (L.w || 1), sy = M.h / (L.h || 1);
+        for (const [px, py] of [[L.vx0, L.vy0], [L.vx1, L.vy0], [L.vx0, L.vy1], [L.vx1, L.vy1]]) {
+          const nx = M.x + (px - L.x) * sx, ny = M.y + (py - L.y) * sy;
+          move = Math.max(move, Math.hypot(nx - px, ny - py));
+        }
+        if (L.media) fade = Math.max(fade, Math.abs(M.o - L.o));
+      }
+    }
+    const span = (f) => Math.max(0, ...ss.map((s) => Math.max(0, ...f(s))) ) - Math.min(...ss.map((s) => Math.min(Infinity, ...f(s))));
+    const clip = a0.clips.length ? span((s) => s.stuck.clips) : 0;
+    const rail = a0.rails.length ? span((s) => s.stuck.rails) : 0;
+    const custom = new Set(ss.map((s) => JSON.stringify(s.stuck.custom))).size > 1;
+    let cueSteps = 0;
+    for (let i = 1; i < ss.length; i++) {
+      if (ss[i].stuck.cues.some((o, j) => Math.abs(o - (ss[i - 1].stuck.cues[j] ?? o)) >= 0.1)) cueSteps++;
+    }
+    const row = {
+      label: `${a0.label} (${a0.device})`, travel, layers: a0.layers.length, move: move / doc.vh, fade,
+      clip, rail: rail / W, custom, cueSteps, steps: ss.length - 1,
+    };
+    checked.push(row);
+    // Alive when the picture answers: a clip advancing, a rail travelling, a
+    // bespoke stage publishing a changing state, a layer moving or a photo
+    // layer fading visibly, or cues changing on at least half the steps.
+    const alive = clip > 0.1 || row.rail > 0.05 || custom || row.move >= MOTION_MIN_LAYER ||
+      fade >= MOTION_MIN_FADE || cueSteps / row.steps >= 0.5;
+    if (!alive) flagged.push(row);
+  }
+  if (process.env.SCROLLCRAFT_MOTION_DEBUG) console.log("\nmotion feel (debug):\n  " + checked.map((r) => JSON.stringify(r)).join("\n  "));
+  if (flagged.length) {
+    console.log("\nNEAR-STATIC PINNED ACT (the reader scrolls and the picture barely answers):\n  " + flagged.map((r) =>
+      `${r.label}: pinned for ${r.travel.toFixed(2)} viewports; ` +
+      (r.layers ? `its large layers move ${(r.move * 100).toFixed(1)}% of the viewport, photo fades ${r.fade.toFixed(2)}; ` : "no large layer; ") +
+      (r.label.endsWith("(pan)") ? `the rail travels ${(r.rail * 100).toFixed(1)}% of the width; ` : "") +
+      `cues change in ${r.cueSteps} of ${r.steps} steps`).join("\n  ") +
+      `\n  Fix: give the planes real travel (under ${Math.round(MOTION_MIN_LAYER * 100)}% of the viewport reads as a still), make the rail overflow,` +
+      `\n  shorten the span, or give each step of the pin a visible change.`);
+  } else if (checked.length) {
+    console.log(`motion feel: ${checked.length} pinned act(s) respond to scroll`);
+  }
+}

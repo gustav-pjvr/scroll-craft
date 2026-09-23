@@ -255,6 +255,17 @@ gettable without motion. If your rail reads better stacked or as a grid at that
 point, override it in your own CSS under `prefers-reduced-motion` (the agency
 reference build relays its three phases out as a grid at desktop widths).
 
+Under reduced motion the engine also gives a pan act no pinned height, since
+the scroll region now carries the travel and a pinned span would be scroll
+where nothing moves (the first real build left 1.8 viewports of it).
+
+**Keyboard focus inside a rail is handled.** When a focused element sits
+inside `[data-sc-pan]`, the engine scrolls the page to the point in the act's
+travel where that item is centred; under reduced motion, where the rail is a
+native scroll region, it brings the item into view inside the region. Do not
+write your own rail focus handler (the first real build had to); do tab
+through the rail and confirm each item lands on screen.
+
 ---
 
 ## 4. `reveal`: a wipe is a change of state
@@ -271,6 +282,18 @@ something else. Wrong for merely introducing an image, where a cue is enough.
 
 `up` `down` `left` `right` `iris`. Reach for `iris` roughly once per page; it is
 the loudest of the five and stops reading as intentional if repeated.
+
+**Two placements, two behaviours.** Inside a `data-sc-act`, the wipe is driven
+by the act's progress across the `data-sc-reveal-at` window, so it runs
+forward and back with the hand. Outside any act (on ordinary flow content),
+it fires once on entry, like `data-sc-in` and entry counters: when the
+element's top enters the lower 88% of the viewport (the same edge as
+`data-sc-in`), the wipe opens, the element gets `sc-in`, and it stays open.
+The engine detects that on its own scroll read rather than with an observer,
+because a closed wipe clips the element to nothing and never reports as
+intersecting. `data-sc-reveal-at` does nothing there. Before this, a reveal
+placed outside an act silently never opened; if you are on an older engine
+copy, put it inside an act.
 
 A wipe that runs edge to edge across a full-bleed image is a transition. A wipe
 on a small element is a fidget. Use it big.
@@ -319,8 +342,13 @@ exists to avoid.
 
 ## 6. `parallax`: layers at different rates
 
-Depth from differential movement. Subtle or nothing: past roughly 200px of total
-travel it stops reading as depth and starts reading as a bug.
+Depth from differential movement. Visible, and bounded. The ceiling: past
+roughly 200px of total travel a single layer stops reading as depth and starts
+reading as a bug. The floor: in a hero, the fastest and slowest planes must
+separate by at least about 6% of the viewport height across the act, or the
+reader turns the wheel and sees a still (hero-depth.md, "A scene, not a name
+over a photo"). Between the two is a wide band; a hero belongs near its top,
+a quiet layer inside a flow section can sit near its bottom.
 
 ```html
 <div class="pf-layer pf-layer--back"  data-sc-parallax="-1.4">…</div>
@@ -474,7 +502,17 @@ stack in reading order, and the trigger set slightly inside the viewport
 (`-12%` bottom margin) so it fires when the reader is looking, not when the
 first pixel clears the fold. A fade with no rise reads as a loading glitch. A
 rise past 24px reads as a slide. Larger, slower, or bouncier is never more
-premium; the restraint is the signal.
+premium; on ordinary sections the restraint is the signal, and the ambition
+belongs to the hero and the peak.
+
+**It must not arrive late.** The trigger fires as the element's top crosses
+about 88% of the viewport, and the fade then takes 620ms plus the stagger, so
+on a quick scroll a tall stack is still fading in while the reader is already
+looking at it. That was one of the three reasons the first real build felt
+laggy at 60fps. Put `data-sc-in` on small groups, keep the stagger short, never
+put it on content that is on the first screen, and give anything that must be
+readable the instant it lands a scroll-driven entrance instead. taste.md,
+"Motion feel", has the rule.
 
 **A flow section directly after a pinned act takes reduced padding.** The pinned
 stage needs a full viewport to scroll off, and full `--sc-section` padding on

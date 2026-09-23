@@ -82,8 +82,11 @@ that made them feel nothing.
 
 Note what the fourth curve does that the others do not: its one slow act is the
 peak, because on a page made entirely of cuts, stopping is the loudest thing
-available. The peak is defined by contrast with its own page, not by an absolute
-amount of spectacle.
+available. The peak is **located** by contrast with its own page: it is
+whatever breaks the page's own pattern. It is still **executed** as the most
+spectacular thing the build does. That one slow frame is the best image the
+build has, at full bleed, with the most ambitious work on the page inside it.
+Contrast tells you where the peak goes; it is not permission for a modest one.
 
 ---
 
@@ -112,6 +115,28 @@ The peak gets three things, and it gets them at the expense of other acts:
 and the visitor leaves able to say the site was nice and unable to say what
 happened. If a second act is competing, demote it: shorter span, less asset,
 plainer device. Something has to be the biggest thing.
+
+**The peak is spectacular.** Restraint everywhere else is what pays for it.
+The peak is the most ambitious thing the build does: the most work, the
+boldest move, the thing that could only have been built for this subject.
+Every honesty, accessibility and performance rule still holds inside it; what
+does not apply is caution about scale.
+
+**The screen-record test.** Would someone screen-record this and send it to a
+friend? Picture the five to ten seconds a visitor would capture on their phone
+and ask whether a stranger who has never heard of the brand would watch it to
+the end and ask what site it is. At planning time, write those seconds down
+in BRIEF.md beside the peak sentence. At Step 5, actually record them (§6)
+and watch the recording. A peak that is only "the biggest act on this
+page" fails; so does one whose best frame is a static screenshot, because
+then the scroll added nothing.
+
+The first real build's peak (a canvas filling a measured road with one dot per
+finisher) was the right idea and the biggest change on its contact sheet, and
+it passed its own feel check. Judged by this test, its weak points show at
+once: the dots painted over the photograph instead of standing in it (the
+builder's own noted flaw), and the subject's unique fact happened elsewhere,
+as a heading.
 
 **The ending must resolve.** The last feeling is the one they carry, and a page
 that trails off into a footer overwrites everything the peak did. Resolution
@@ -255,7 +280,7 @@ arriving cold.
 intended curve to match what got built is the same failure as rewriting a
 fingerprint row: it turns the artifact into a description of the accident.
 
-Then three specific checks:
+Then four specific checks:
 
 - **Does the peak read as the peak?** On the contact sheet it should be the
   largest visual change on the page and it should occupy the most scroll room.
@@ -267,6 +292,14 @@ Then three specific checks:
 - **Does the end resolve?** The last screen should be able to stand still with
   content on it. Blank final frame, a cue that faded out, or a footer that just
   begins means the page ended rather than finished.
+- **Would someone screen-record it?** Record the hero and the peak at a normal
+  scroll pace, each as its own clip of five to fifteen seconds, and watch them
+  back without the page open. Playwright records a context with
+  `browser.newContext({ recordVideo: { dir, size } })` and writes the file when
+  the context closes; a browser tool from your inventory that records a GIF
+  does the same job (tools.md). If the hero recording looks like a still photo
+  with type fading on it, or the peak recording is not something you would
+  send to anyone, the page goes back to Step 2, not to a styling pass.
 
 Two adjacent acts that produced the same word in step 2 is the filler finding
 from §1, caught late. Cutting one is almost always right, and almost always

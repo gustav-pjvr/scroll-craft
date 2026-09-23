@@ -23,6 +23,11 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230A0807'/></svg>">
 <link rel="stylesheet" href="scrollcraft.css">
 <style>
+  /* Page transitions for a multi-page site. Keep this rule inline in <head>
+     on every page: declared only in an external stylesheet, Chrome skips
+     the transition on a page that loads a large script (site.md §5). */
+  @view-transition { navigation: auto; }
+
   /* The whole rebrand: six colours and two faces. Everything else in
      scrollcraft.css derives from these. */
   :root {
@@ -35,6 +40,16 @@
     --sc-font-display: "Archivo", system-ui, sans-serif;
     --sc-font-text:    "Geist", system-ui, sans-serif;
   }
+  /* The fixed bar's height, measured on the render at each breakpoint. The
+     first screen's content (eyebrow included) and any copy anchored near the
+     top of a stage start below it. See taste.md, Fixed chrome. */
+  :root { --sc-chrome-h: 4rem; }
+  html  { scroll-padding-top: var(--sc-chrome-h); }
+  .site-bar { position: fixed; inset: 0 0 auto; height: var(--sc-chrome-h); z-index: 50; }
+  /* A pinned stage fills the viewport under the fixed bar, so copy placed at
+     its top starts below the bar. The harness reports it as TEXT UNDER CHROME
+     when it does not. Restyle the close, keep the clearance. */
+  .close__inner { padding: calc(var(--sc-chrome-h) + 2rem) var(--sc-gutter) 0; }
   /* Your page's own classes go here. Do not restyle .sc-stage, .sc-copy or any
      [data-sc-*] selector: those are the mechanism. */
 </style>
@@ -50,7 +65,10 @@
 
   <!-- 1 · RECOGNITION: layered stills, pin. Four planes on data-sc-parallax
        (plate, subject cutout, foreground, atmosphere), no scrub, no video.
-       This is the default hero; see SKILL.md Step 3 and hero-depth.md. -->
+       This is the default hero; see SKILL.md Step 3 and hero-depth.md.
+       A scene, not a name over a photo: these rates separate the fastest and
+       slowest plane by about 250px across the act. Keep at least the minimum
+       travel in hero-depth.md if you retune them. -->
   <section data-sc-act="pin" data-sc-span="2.6" data-sc-drift="#08090b">
     <div data-sc-stage class="hero-planes">
       <img class="pf-layer pf-layer--plate" data-sc-parallax="-1.4"
@@ -142,7 +160,14 @@
 
 </main>
 
-<script src="scrollcraft.js"></script>
-<script>ScrollCraft.mount(document.body);</script>
+<!-- defer keeps the parser from blocking on the engine. A deferred script runs
+     just before DOMContentLoaded, so mount there: an inline mount call would
+     run before the engine exists. -->
+<script src="scrollcraft.js" defer></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    window.scrollcraft = ScrollCraft.mount(document.body);
+  });
+</script>
 </body>
 </html>

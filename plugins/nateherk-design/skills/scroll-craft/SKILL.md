@@ -6,8 +6,9 @@ description: >
   creators, and case studies. Plan the visitor journey, page grammar, emotional
   peak, and bespoke signature move. Create dimensional heroes from layered
   stills and independent visual planes, with video only where the brief earns
-  it, restrained motion, and separate mobile composition. Use supplied
-  photos and footage or generate photoreal assets through kie.ai, write semantic
+  it, purposeful motion, and separate mobile composition. Use supplied
+  photos and footage, the session's own image tools, or generate photoreal
+  assets through kie.ai, write semantic
   HTML, and verify desktop, mobile, and reduced-motion scroll states visually.
   Use for "scrollcraft", "scroll craft", "layered hero", "premium hero",
   "cinematic hero", "scrollytelling", "scroll animation site", "a site where
@@ -76,11 +77,34 @@ readable and the scene tells one clear story.
 
 Read [references/hero-depth.md](references/hero-depth.md) before planning the hero
 or generating its assets. It covers clean plates, genuine alpha cutouts, shared
-contact anchors, typography between planes, restrained scroll choreography,
-mobile art direction, and visual acceptance, with the approved Sonder example.
+contact anchors, typography between planes, purposeful scroll choreography,
+the supplied-photos route, mobile art direction, and visual acceptance, with
+the approved Sonder example.
 Use the composition that fits the chosen grammar; do not repeat Sonder's scene
 or impose pinning on a grammar that forbids it. Honor explicit static or simpler
 directions, and keep depth in the static composition when motion is reduced.
+
+## Restraint means purpose, not timidity
+
+Motion must mean something, and when it moves it moves with conviction. The
+first real build read "restrained" as "small": its hero planes travelled about
+1% of the viewport across a 1.5-viewport pin, and the one fact only that
+subject has (the only marathon that crosses the Equator) got a sentence and
+a hairline. Three consequences bind every build:
+
+- The hero is a scene, not a name over a photo: planes that visibly separate
+  under the hand, a camera idea, an exit. A pinned hero whose planes travel a
+  percent or two of the viewport is a still photograph with extra files
+  ([hero-depth.md](references/hero-depth.md) has the minimum travel).
+- The peak is the most ambitious thing the build does, the part a visitor
+  would screen-record and send to a friend ([feel.md §2](references/feel.md#2-the-peak)).
+- The subject's one unique fact gets a visual moment of its own
+  ([uniqueness.md §6](references/uniqueness.md#6-originality-unique-against-the-world-not-only-against-your-registry)).
+
+Every honesty, accessibility and performance rule still holds. Ambition is
+spent inside them, never against them: a spectacular peak still clears
+contrast, still has a reduced-motion composition, and still holds its frame
+rate on a phone-class CPU.
 
 ## Approved collection standard
 
@@ -171,6 +195,9 @@ BRIEF.md must contain, at minimum:
   the hero, the signature move and the close each come from in this subject,
   the first-guess ideas and what happened to them, and the swap-test and
   describe-it results.
+- **Tools block** ([tools.md](references/tools.md)): the inventory mapped to
+  jobs, and every spend or upload the user approved, with the stated cost and
+  the date.
 
 [references/feel.md](references/feel.md) is the spec for all four.
 
@@ -197,6 +224,27 @@ It reports node, a full ffmpeg build, playwright and Chrome, the API key, and
 the resolved workspace. Required failures exit non-zero. Say plainly which items
 are missing rather than working around them silently.
 
+### Inventory your tools
+
+Before planning any asset, list the tools and connectors this session
+actually has, by capability: image generation, image editing (background
+removal, subject selection, generative expand or fill, upscale), video, 3D,
+font discovery, brand and web research, design tools, and browser automation.
+Map them to the jobs this build needs and write the result into BRIEF.md as a
+Tools block. Full method, examples from real sessions and the rules:
+[references/tools.md](references/tools.md).
+
+- Prefer a real tool over a workaround: a real cutout beats a mask.
+- Anything that spends credits or money needs the user's explicit yes, with
+  the cost stated first, recorded in BRIEF.md. Creative delegation is not
+  consent to spend.
+- Never upload a client's private material to a third-party service without
+  the user's yes.
+
+The first real build skipped this and cut its hero with hand-written masks
+while background removal, generative fill and an upscaler sat unused in the
+same session.
+
 ### The workspace
 
 Builds and the fingerprint registry live in one directory, and **it is resolved,
@@ -220,13 +268,24 @@ stop you repeating yourself, so your first build has nothing to clear.
 If you already keep builds somewhere else, drop a `.scrollcraft.json` at your
 project root pointing at it and nothing moves.
 
+`--ensure` also creates `<workspace>/lab/`. It is scratch that must never
+ship: harness output (shots, contact sheets, reports), original and
+intermediate asset files (source photos, masks, tool outputs, previews),
+one-off scripts and perf probes. Give each build its own folder,
+`<workspace>/lab/<name>/`, so the build folder holds only what deploys. Where
+Step 5's commands write `--out lab/...`, this is the folder they mean; pass the
+full path. The first real build left `lab/` empty and made its own `work/`
+folder beside it, because nothing said what `lab/` was for.
+
 ### The rest
 
-1. `KIE_AI_API_KEY`, **only if you are generating assets.** A build from the
-   user's own photos and footage needs no key and no spend, and that is a
-   first-class route, not a fallback. Confirm balance with
-   `node <skill>/scripts/kie.mjs probe`. A still costs cents and a 5s clip costs
-   more; a six-act page with two clips is a small spend, not a large one.
+1. `KIE_AI_API_KEY`, **only if you are generating assets through kie.ai**,
+   which is one generation route among the session's tools, not the default
+   (tools.md §4). A build from the user's own photos and footage needs no key
+   and no spend, and that is a first-class route, not a fallback. Confirm
+   balance with `node <skill>/scripts/kie.mjs probe`. A still costs cents and a
+   5s clip costs more; a six-act page with two clips is a small spend, not a
+   large one, and it still needs the user's yes with the cost stated first.
 2. A brand kit if one exists (colours, logo, type, existing product shots). If
    the brand has a folder in this repo, read it before generating anything, and
    obey its hard rules. A brand that forbids invented numbers means no stat
@@ -243,7 +302,12 @@ fabricated multiple-choice list of industries: a made-up menu biases them and
 reads as you deciding their business for them.
 
 Step 0 already covered vibe, sequence, energy and range. Do not ask any of it
-again. Ask only what you cannot sensibly default:
+again. Ask only what you cannot sensibly default, and only what Step 0 left
+open. **Under explicit creative delegation, or where Step 0 already answered
+them, do not ask these at all:** write the answers into BRIEF.md as authored
+decisions, labelled as such, and go straight to the journey. The one question
+delegation never answers is spend or upload consent (tools.md §3); batch it
+into a single ask if the plan needs it.
 
 1. **What is this, and who is it for?** One or two sentences in their words.
 2. **What must the visitor believe by the end?** The single sentence the page
@@ -286,8 +350,9 @@ detail in [references/uniqueness.md](references/uniqueness.md).
 A new grammar is allowed when its navigation, sequence, ending, and explicit
 bans describe a different structure; a new label alone earns no credit. Filmic one-shot is the one the first four
 builds all used, so choosing it again means saying in the report why the other
-seven did not fit the interview. Nav, hero and close all follow from the
-grammar; they are not decided separately.
+seven did not fit the interview. The grammar's forbids and bans bind nav,
+hero and close; its "typical nav, hero, close" is the common shape to diverge
+from, not a prescription (uniqueness.md §2).
 
 **Invent the signature move.** One bespoke interaction that lives on this site
 alone, coded in the page, not a parameter change to a kit device. Question 5 of
@@ -339,6 +404,17 @@ Checks before you build:
   the page is one of this skill's own worked examples re-used.
 - One act is the peak and it has the largest span by a visible margin. The act
   before it is quieter than it is.
+- **The peak is spectacular on paper.** It is the most ambitious thing in the
+  plan, and you can describe the five to ten seconds a visitor would
+  screen-record from it (feel.md §2). A peak that is only "the biggest act"
+  is not there yet.
+- **The hero is a scene.** The plan names its opening, midpoint and exit, and
+  its planes separate by at least the minimum travel in hero-depth.md.
+- **The subject's one unique fact has its own act or moment**, named in the
+  score table, not a sentence inside another act (uniqueness.md §6).
+- **Every pinned act visibly changes across its span** unless BRIEF.md
+  declares it authored silence, and any heavy canvas or bespoke JS is planned
+  to draw incrementally (taste.md, Motion feel).
 - Every act earns its scroll span. Eight to fourteen viewport-heights is a
   pacing reference for longer cinematic pages, not a quota. Shorter editorial,
   gallery, or working-surface grammars should stay short when the journey is
@@ -350,6 +426,13 @@ Checks before you build:
 
 Full pipeline, prompt scaffolds and model notes: [references/assets.md](references/assets.md).
 
+**Supplied photographs come first when they exist**, prepared with the tools
+from your inventory: cutouts and clean plates from real editing tools, masks
+only when no tool exists. Export every image at its rendered size times the
+device pixel ratio and never enlarge it in the export; a photo shown 1910px
+wide needs a source at least that wide. The route and its check are in
+assets.md, "Supplied photographs".
+
 **Stills first.** The default hero is a layered composition: a clean plate,
 genuine alpha cutouts, a foreground plane, and atmosphere, each on its own
 `data-sc-parallax` rate (devices.md §6, hero-depth.md). A flat subject that
@@ -360,7 +443,7 @@ generated. Worldflight is the heaviest page there is, because every leg is a
 clip; it is chosen only when the brief is literally one continuous journey
 and the weight is accepted in writing.
 
-Short version:
+Short version, for the kie.ai route:
 
 ```bash
 node <skill>/scripts/kie.mjs still "<style preamble>\n\n<scene>" out/01-hero.png --ar 16:9 [--ref brand-can.png]
@@ -378,7 +461,7 @@ Four things that decide whether this looks premium or generated:
 - **Encode for scrubbing, not playback.** `encode.sh` sets a dense GOP because
   seeking walks from the previous keyframe. A normal web encode plays perfectly
   and scrubs like mud.
-- **Layer the hero.** Cut the scene into planes that scroll at slightly
+- **Layer the hero.** Cut the scene into planes that scroll at visibly
   different rates, with the product parked between the mid and foreground
   planes. Depth from differential movement is the cheapest premium signal on
   the page. The recipe and its traps are under `parallax` in
@@ -395,6 +478,14 @@ Start from `references/template.html`. The device patterns are in
 [references/devices.md](references/devices.md); the spacing, type, depth and
 colour rules are in [references/taste.md](references/taste.md). Read taste.md
 before writing markup, not after, and build without announcing the checklist.
+The template loads the engine with `defer` and mounts on `DOMContentLoaded`;
+keep that shape.
+
+**The first screen clears the header.** Any fixed or sticky bar covers what
+sits under it, so the first screen's content, eyebrow included, starts below
+the bar's height: set it as a token (`--sc-chrome-h`), use it for
+`scroll-padding-top` and for the top offset of anything anchored near the top
+of a stage. taste.md, "Fixed chrome", has the rule and the check.
 
 Theme by overriding tokens, six values and two fonts:
 
@@ -445,9 +536,38 @@ actually settle, and reports **dead scroll**, **cues that never reach full
 opacity**, and **contrast measured on the composited page at the brightest
 frame under each line**. It writes a contact sheet.
 
+It also reports **TEXT UNDER CHROME**: text whose ink is covered by a fixed
+or sticky element while it is meant to be visible (site-check runs the same
+check on every page's shots). Treat it as a ship-blocker, and still look at the
+first screen at desktop and phone width yourself: the first real build shot
+its page ten rounds with the hero's eyebrow clipped under the header. And it
+reports **NEAR-STATIC PINNED ACT**: a pinned act whose visible layers travel
+under 5% of the viewport, the hero failure that build shipped.
+For an event whose date is not announced, run site-check with `--date-tba`
+(or `--brief <path>` to BRIEF.md, which it reads the TBA state from) so it
+asserts the absence of fake date claims instead of demanding an `.ics` and
+Event JSON-LD (subjects.md).
+
 Then do the part the harness cannot: **read `sheet.png`.** It proves a clip
 advances; it cannot tell you the composition is good, the motion is smooth, or
 the page means anything. Also tab through for focus order.
+
+**Then check the motion feel** ([taste.md](references/taste.md), Motion feel;
+procedure in [verify.md](references/verify.md)):
+
+- Every pinned act changes visibly across its frames on the sheet. Six hero
+  frames that look alike are a near-static act, even when the harness's 5%
+  floor is cleared: that floor catches the worst case, not a weak one.
+- Flow content is already arriving as it enters the screen, not fading in
+  after it is fully visible.
+- Scroll the page again with Chrome's CPU throttled 4x (a phone-class CPU).
+  The first real build held 60 fps on a desktop while its peak repainted up to
+  5,821 canvas arcs every frame; that is where a phone stutters.
+- Every hero image has at least as many pixels as it is shown at times the
+  device pixel ratio (assets.md, "Supplied photographs").
+- **Screen-record the hero and the peak** at a normal scroll pace and watch
+  the recordings (feel.md §6). Would someone send it to a friend? If not, the
+  page goes back to Step 2, not to a styling pass.
 
 **Then run the feel check** ([references/feel.md §6](references/feel.md)). Scroll
 the page cold, write one word per act for what you felt, and only then open
@@ -504,6 +624,12 @@ machine-made.
 | A form that shows success it cannot confirm, or that submits personal data in a URL | A real POST endpoint, honest state, and a working no-JS path |
 | Impact figures, attendance or outcomes without a source the page can cite | Real, sourced numbers, or no number |
 | An idea taken from this skill's own examples, or a page that would work unchanged for a competitor | Derive it from this subject and pass the three tests in uniqueness.md §6 |
+| A hero that is a name over a photo, or planes that barely move across their pin | A scene with visible plane separation, a camera idea and an exit. See hero-depth.md |
+| A peak nobody would screen-record | The most ambitious thing the build does. See feel.md §2 |
+| Text under the fixed header on any screen where it is meant to be read | Clear the bar's height (`--sc-chrome-h`). See taste.md, Fixed chrome |
+| An image shown larger than its pixels times the device pixel ratio | Export at rendered size times DPR from a big enough original; never enlarge in the export. See assets.md |
+| A hand-made workaround while the session has a real tool for the job | Inventory the tools first and use them. See tools.md |
+| Spending credits or money, or uploading a client's private files, without the user's explicit yes | State the cost or the service, ask, record the answer in BRIEF.md. See tools.md §3 |
 
 ## Output
 
@@ -513,7 +639,8 @@ each existing row, the journey, the feeling curve and the peak, the feel-check
 diff (intended curve against felt curve, and what you changed), the score table
 (device per beat), the site shape (one page, or a site and which inner pages),
 the Originality block checked against the finished page,
-what you
+the tools used per job (and the workaround and reason where none existed),
+the spend approved and the spend made, what you
 generated, what you verified with screenshots, and anything you could not
 verify. Say if the brief was self-authored rather than interviewed. Give the
 local URL. Keep it brief; the page is the deliverable.

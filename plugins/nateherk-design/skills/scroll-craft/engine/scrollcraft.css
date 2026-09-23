@@ -14,8 +14,10 @@
    yours.
    ========================================================================== */
 
-/* ---------------------------------------------------------------- tokens -- */
-:root {
+/* ---------------------------------------------------------------- tokens --
+   Zero specificity on purpose: an author's tokens.css (`:root { --sc-... }`)
+   wins whether it is linked before or after this file. */
+:where(:root) {
   /* --- colour roles. Override these six and the page is rebranded. -------- */
   --sc-canvas:      #08090b;   /* the page ground. Drift interpolates this.   */
   --sc-surface:     #101217;   /* anything raised off the ground             */
@@ -280,6 +282,10 @@ video[data-sc-scrub] { opacity: 0; transition: opacity 380ms var(--sc-ease-out);
 
 /* reveal + parallax */
 [data-sc-reveal] { will-change: clip-path; }
+/* A reveal outside any act fires once on entry; the engine writes the closed
+   and open clip-path, this carries the move. Long enough to read as a wipe,
+   short enough to finish before the block is read. */
+.sc-reveal--flow { transition: clip-path 900ms var(--sc-ease-out); }
 [data-sc-parallax] { will-change: transform; }
 
 /* flow reveal (fires once) */

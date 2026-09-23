@@ -9,6 +9,7 @@
  *   node site-check.mjs --url http://localhost:4500 --out lab/site
  *   node site-check.mjs --url ... --depth 2 --max 40
  *   node site-check.mjs --url ... --subject event          also lint the event rules
+ *   node site-check.mjs --url ... --subject event --date-tba   the date is not announced yet
  *   node site-check.mjs --url ... --transitions none       site chose no page transition
  *   node site-check.mjs --url ... --brief BRIEF.md         read the transition choice from the brief
  *   node site-check.mjs --url ... --no-shoot               skip the shoot.mjs pass on the home page
@@ -25,7 +26,9 @@
  *   console     no console errors (desktop and phone passes)
  *   requests    no failed requests and no 4xx or 5xx subresource
  *   overflow    no horizontal overflow at 390 wide (names the widest culprits)
- *   transition  @view-transition in a loaded stylesheet, when the site's
+ *   transition  @view-transition in a loaded stylesheet AND inline in <head>
+ *               (external only: Chrome skips it on a page that loads a large
+ *               script, see site.md §5), when the site's
  *               transition is View Transitions (the default; --transitions
  *               barba or none turns it off)
  *   form        every <form> posts (method="post") to an action that is not
@@ -37,11 +40,22 @@
  *   links       every same-origin link resolves (4xx and 5xx are broken)
  *   transition  a click from home to an inner page navigates with no console
  *               error, three times (cross-document View Transitions, when
- *               declared). Chrome aborting the transition itself is printed
- *               as a BROWSER NOTE with its count, not scored (see smokeOnce)
+ *               declared). Chrome skipping or aborting the transition is printed
+ *               as a TRANSITION NOTE with its count, not scored (see smokeOnce)
  *   subject     --subject event: some page carries Event JSON-LD (an @type
- *               ending in Event, or Festival) whose startDate states a time
- *               zone, and some page links an .ics file
+ *               ending in Event, or Festival) whose startDate is a date and
+ *               time with a time zone and is not in the past (endDate, when
+ *               given, counts as "not over yet"), and some page links an .ics
+ *               file.
+ *               With --date-tba (or a BRIEF.md line saying the date is to be
+ *               announced, read via --brief) the lint turns round: no Event
+ *               JSON-LD with a startDate, no .ics link, no countdown
+ *               ([data-sc-countdown], or an id or class naming a countdown),
+ *               and at least one page states the date is to be announced.
+ *   chrome      per page, desktop and phone: no text sits under fixed or
+ *               sticky chrome on the first screen, or in a pinned act while
+ *               its cue is at full strength (the shoot.mjs TEXT UNDER CHROME
+ *               check, run on the top, middle and bottom shots)
  *   shoot       shoot.mjs runs clean on the home page (its findings are
  *               advisory, as they are when you run it yourself)
  *
@@ -85,6 +99,14 @@ const MAX_LINK_CHECKS = 200;
 const SMOKE_RUNS = 3;
 const PHONE = { width: 390, height: 844 };
 const DESK = { width: 1440, height: 900 };
+
+// Event date not yet announced: the flag, or a BRIEF.md line that says so
+// ("date: to be announced", "TBA", "not yet announced", "not yet confirmed").
+// The subject lint then asserts the ABSENCE of date claims instead of their
+// presence (subjects.md, "date not yet announced").
+const BRIEF_TEXT = arg("--brief", null) ? fs.readFileSync(path.resolve(arg("--brief")), "utf8") : "";
+const DATE_TBA = has("--date-tba") ||
+  /\bdates?\b[^\n]{0,60}\b(to be announced|tba|tbc|not (yet )?(announced|confirmed|set))\b/i.test(BRIEF_TEXT);
 
 // Transition choice: explicit flag, else the brief, else the site.md default.
 let TRANSITIONS = arg("--transitions", null);
@@ -234,10 +256,11 @@ async function visit(url, depth) {
     return rec;
   }
   rec.facts = await d.page.evaluate(pageFacts, { header: HEADER, tokens: TOKENS });
-  rec.shots.push(...await shootThree(d.page, pages.length, "d"));
+  rec.chrome = [];
+  rec.shots.push(...await shootThree(d.page, pages.length, "d", rec.chrome));
   const m = await open(phone, url);
   rec.overflow = m.error ? null : await m.page.evaluate(overflowAt, PHONE.width);
-  if (!m.error) rec.shots.push(...await shootThree(m.page, pages.length, "m"));
+  if (!m.error) rec.shots.push(...await shootThree(m.page, pages.length, "m", rec.chrome));
   rec.console = dedupeConsole([...d.log.console, ...m.log.console], [...d.log.failed, ...m.log.failed]);
   rec.failed = [...new Map([...d.log.failed, ...m.log.failed].map((f) => [f.url + f.why, f])).values()];
   await d.page.close();
@@ -253,13 +276,19 @@ function dedupeConsole(msgs, failed) {
   return [...new Set(out.map((c) => c.text))];
 }
 
-async function shootThree(page, n, tag) {
+async function shootThree(page, n, tag, chromeHits) {
   const out = [];
   const max = await page.evaluate(() => Math.max(0, document.documentElement.scrollHeight - innerHeight));
   const ys = [0, Math.round(max / 2), max];
   for (let k = 0; k < 3; k++) {
     await page.evaluate((y) => scrollTo({ top: y, behavior: "instant" }), ys[k]);
     await page.waitForTimeout(350);
+    // Text under fixed or sticky chrome: everything on the first screen, only
+    // stuck pinned cues further down (flow text scrolling under a header is normal).
+    if (chromeHits) {
+      const hits = await page.evaluate(underChrome, { all: k === 0, scope: null });
+      hits.forEach((h) => chromeHits.push({ ...h, where: `${tag === "d" ? "desktop" : "phone"} ${["top", "middle", "bottom"][k]}` }));
+    }
     const file = path.join(OUT, "shots", `p${String(n).padStart(3, "0")}-${tag}${k}.png`);
     await page.screenshot({ path: file });
     out.push(file);
@@ -299,6 +328,11 @@ function pageFacts({ header, tokens }) {
     }
     return false;
   })();
+  // The opt-in has to be inline in <head>: Chrome reads it when it lifts the
+  // incoming page's render block, before a large script lets an external
+  // sheet apply, and skips the transition otherwise (site.md §5).
+  const vtInline = [...document.querySelectorAll("head style")]
+    .some((s) => /@view-transition\s*\{[^}]*navigation\s*:\s*auto/.test(s.textContent));
 
   const hdr = document.querySelector(header);
   const hdrInfo = hdr ? {
@@ -338,7 +372,7 @@ function pageFacts({ header, tokens }) {
         if (Array.isArray(o)) return o.forEach(walk);
         if (!o || typeof o !== "object") return;
         const types = [].concat(o["@type"] || []);
-        if (types.some((t) => /Event$|^Festival$/.test(String(t)))) events.push({ type: types.join(","), startDate: o.startDate || null });
+        if (types.some((t) => /Event$|^Festival$/.test(String(t)))) events.push({ type: types.join(","), startDate: o.startDate || null, endDate: o.endDate || null });
         Object.values(o).forEach(walk);
       };
       walk(data);
@@ -358,11 +392,138 @@ function pageFacts({ header, tokens }) {
   return {
     title: (document.title || "").trim(),
     h1: document.querySelectorAll("h1").length,
-    sheets, hasVT, header: hdrInfo, forms, ld, links, ics,
+    sheets, hasVT, vtInline, header: hdrInfo, forms, ld, links, ics,
     tokensOk: sheets.some((s) => s.name === tokens && s.loaded),
     engineCssOk: sheets.some((s) => /^scrollcraft(-section)?\.css$/.test(s.name) && s.loaded),
     engine: !!window.ScrollCraft,
+    // For the date-TBA lint: a countdown widget, and an honest "to be announced".
+    countdown: (() => {
+      const c = document.querySelector("[data-sc-countdown],[id*=countdown i],[class*=countdown i]");
+      return c ? c.tagName.toLowerCase() + (c.id ? "#" + c.id : "") + (typeof c.className === "string" && c.className ? "." + c.className.trim().split(/\s+/)[0] : "") : null;
+    })(),
+    tba: /\b(to be announced|to be confirmed|date(s)? (is |are )?(tba|tbc)|(not yet|still to be) (announced|confirmed))\b/i.test(document.body ? document.body.innerText : ""),
   };
+}
+
+// Copied verbatim from shoot.mjs (keep the two in step).
+// In page: text whose ink is overlapped by fixed or sticky chrome painted
+// above it. `all` checks every visible text node (the first screen); otherwise
+// only cues that are meant to be visible where they are: a pinned act's cues
+// at or near full strength, and worldflight copy blocks. Flow content that
+// scrolls under a header while it is read is normal and is not reported.
+function underChrome({ all, scope }) {
+  const R = (scope && document.querySelector(scope)) || document;
+  const vw = innerWidth, vh = innerHeight;
+  const snip = (el) => (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 46);
+  const name = (el) => el.tagName.toLowerCase() + (el.id ? "#" + el.id : "") +
+    (typeof el.className === "string" && el.className.trim() ? "." + el.className.trim().split(/\s+/).slice(0, 2).join(".") : "");
+  const alpha = (c) => { const m = (c || "").match(/[\d.]+/g); return !m || m.length < 3 ? 0 : m.length < 4 ? 1 : +m[3]; };
+  const textRects = (root) => {
+    const out = [];
+    const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let n; (n = tw.nextNode());) {
+      if (!n.nodeValue.trim()) continue;
+      const rg = document.createRange();
+      rg.selectNodeContents(n);
+      for (const b of rg.getClientRects()) if (b.width >= 2 && b.height >= 6) out.push({ b, node: n });
+    }
+    return out;
+  };
+
+  // Chrome: fixed or sticky, visible, not the engine's own stages or a
+  // full-screen backdrop, and what it actually paints (its box when it has a
+  // fill, otherwise only its text and images).
+  const chrome = [];
+  for (const el of document.querySelectorAll("body *")) {
+    const cs = getComputedStyle(el);
+    if (cs.position !== "fixed" && cs.position !== "sticky") continue;
+    if (el.matches("[data-sc-stage],.sc-stage,[data-sc-world],[data-sc-world-copy],.sc-world,.sc-grain,[data-sc-progress]")) continue;
+    if (el.closest("[data-sc-world],[data-sc-world-copy],[data-sc-stage]")) continue;
+    if (cs.visibility === "hidden" || cs.display === "none" || (parseFloat(cs.opacity) || 0) < 0.1) continue;
+    const r = el.getBoundingClientRect();
+    const iw = Math.min(r.right, vw) - Math.max(r.left, 0), ih = Math.min(r.bottom, vh) - Math.max(r.top, 0);
+    if (iw < 1 || ih < 1) continue;
+    if (iw * ih > 0.6 * vw * vh) continue;
+    const solid = alpha(cs.backgroundColor) >= 0.3 || cs.backgroundImage !== "none" ||
+      (cs.backdropFilter && cs.backdropFilter !== "none");
+    const paints = solid ? [r] : textRects(el).map((x) => x.b)
+      .concat([...el.querySelectorAll("img,svg,video,canvas")].map((m) => m.getBoundingClientRect()));
+    chrome.push({ el, paints });
+  }
+  if (!chrome.length) return [];
+  const inChrome = (n) => chrome.some((c) => c.el.contains(n));
+
+  const effOpacity = (el) => {
+    let o = 1;
+    for (let e = el; e && e !== document.documentElement; e = e.parentElement) {
+      const cs = getComputedStyle(e);
+      if (cs.visibility === "hidden" || cs.display === "none") return 0;
+      o *= parseFloat(cs.opacity);
+    }
+    return o;
+  };
+  const cueOpacity = (el) => {
+    const o = parseFloat(getComputedStyle(el).opacity) || 0;
+    const units = el.querySelectorAll(".sc-split__i");
+    if (!units.length) return o;
+    let m = 0;
+    units.forEach((u) => { m = Math.max(m, parseFloat(getComputedStyle(u).opacity) || 0); });
+    return o * m;
+  };
+
+  let owners;
+  if (all) owners = [R === document ? document.body : R];
+  else {
+    // Only while the act is actually stuck: on its entry and exit slides the
+    // whole stage scrolls, and text passing under a header then is normal.
+    const stuck = (act) => {
+      const r = act.getBoundingClientRect();
+      const s = (act.querySelector("[data-sc-stage]") || act).getBoundingClientRect();
+      return r.top <= 1 && r.bottom >= vh - 1 && Math.abs(s.top) <= 1;
+    };
+    owners = [...R.querySelectorAll("[data-sc-cue],[data-sc-copy]")].filter((el) => {
+      const act = el.closest("[data-sc-act]");
+      const pinned = el.hasAttribute("data-sc-copy") ||
+        (act && ["scrub", "pin", "pan"].includes(act.dataset.scAct) && stuck(act));
+      return pinned && cueOpacity(el) >= 0.85;
+    });
+  }
+
+  const hits = new Map();
+  const probe = document.createElement("style");
+  probe.textContent = "*{pointer-events:auto!important}";
+  document.head.appendChild(probe);
+  try {
+    for (const owner of owners) {
+      for (const { b, node } of textRects(owner)) {
+        const pe = node.parentElement;
+        if (!pe || inChrome(pe) || effOpacity(pe) < 0.5) continue;
+        if (b.bottom <= 0 || b.top >= vh || b.right <= 0 || b.left >= vw) continue;
+        // A line box carries leading above and below the glyphs; trim it so a
+        // header that only touches the leading is not called a collision.
+        const t = b.top + b.height * 0.15, bt = b.bottom - b.height * 0.15;
+        for (const c of chrome) {
+          for (const pr of c.paints) {
+            const ix = Math.min(b.right, pr.right) - Math.max(b.left, pr.left);
+            const iy = Math.min(bt, pr.bottom) - Math.max(t, pr.top);
+            if (ix < 2 || iy < 2) continue;
+            // Painted above the text? Hit-test the middle of the overlap.
+            const cx = Math.max(0, Math.min(vw - 1, Math.max(b.left, pr.left) + ix / 2));
+            const cy = Math.max(0, Math.min(vh - 1, Math.max(t, pr.top) + iy / 2));
+            const stack = document.elementsFromPoint(cx, cy);
+            const ci = stack.findIndex((e) => c.el === e || c.el.contains(e));
+            const ti = stack.findIndex((e) => e === pe || pe.contains(e) || e.contains(pe));
+            if (ci === -1 || (ti !== -1 && ti < ci)) continue;
+            const blk = pe.closest("[data-sc-cue],[data-sc-copy],p,h1,h2,h3,h4,h5,h6,li,a,figcaption,blockquote,span") || pe;
+            const key = snip(blk) + "|" + name(c.el);
+            const prev = hits.get(key);
+            if (!prev || prev.px < iy) hits.set(key, { t: snip(blk), by: name(c.el), px: Math.round(iy) });
+          }
+        }
+      }
+    }
+  } finally { probe.remove(); }
+  return [...hits.values()];
 }
 
 // Runs in the phone page. Horizontal overflow, and who causes it.
@@ -415,7 +576,9 @@ for (const p of ok) {
       (p.overflow.culprits.length ? `; widest: ${p.overflow.culprits.join("; ")}` : ""));
   }
   if (TRANSITIONS === "vt" && !f.hasVT) defect(p.url, "transition", "no @view-transition rule in any loaded stylesheet");
+  else if (TRANSITIONS === "vt" && !f.vtInline) defect(p.url, "transition", "@view-transition is only in an external stylesheet; declare it inline in <head>, or Chrome skips the transition on a page that loads a large script (site.md §5)");
   checkForms(p);
+  for (const h of p.chrome || []) defect(p.url, "chrome", `"${h.t}" sits under ${h.by} (${h.px}px deep, ${h.where})`);
   f.ld.filter((b) => !b.ok).forEach((b) => defect(p.url, "json-ld", `a JSON-LD block does not parse: ${b.error}`));
 }
 
@@ -467,20 +630,48 @@ for (const [target, from] of linkSources) {
 // --------------------------------------------------- subject: event ----
 if (SUBJECT) {
   if (SUBJECT !== "event") console.log(`note: no lint exists for --subject ${SUBJECT}; only "event" is checked`);
-  else {
-    const withEvent = ok.filter((p) => p.facts.ld.some((b) => b.ok && b.events.length));
-    const withIcs = ok.filter((p) => p.facts.ics);
-    if (!withEvent.length) defect(null, "subject", "no page carries an Event JSON-LD block (subjects.md, events)");
-    for (const p of withEvent) {
-      for (const e of p.facts.ld.flatMap((b) => b.events || [])) {
-        if (!e.startDate) defect(p.url, "subject", `${e.type} JSON-LD has no startDate`);
-        else if (/T\d/.test(e.startDate) && !/(Z|[+-]\d\d:?\d\d)$/.test(e.startDate)) {
-          defect(p.url, "subject", `${e.type} startDate "${e.startDate}" states no time zone`);
-        }
+  else if (DATE_TBA) lintEventTba();
+  else lintEventDated();
+}
+
+// A claimed date: Event JSON-LD whose startDate is a date AND time with a time
+// zone (a date-only startDate cannot say when the day starts for a visitor in
+// another zone), not already over, plus an .ics link somewhere on the site.
+function lintEventDated() {
+  const withEvent = ok.filter((p) => p.facts.ld.some((b) => b.ok && b.events.length));
+  const withIcs = ok.filter((p) => p.facts.ics);
+  if (!withEvent.length) defect(null, "subject", "no page carries an Event JSON-LD block (subjects.md, events). If the date is not announced yet, run with --date-tba");
+  const now = Date.now(), DAY = 86400000;
+  for (const p of withEvent) {
+    for (const e of p.facts.ld.flatMap((b) => b.events || [])) {
+      if (!e.startDate) { defect(p.url, "subject", `${e.type} JSON-LD has no startDate`); continue; }
+      if (!/T\d/.test(e.startDate)) defect(p.url, "subject", `${e.type} startDate "${e.startDate}" is a date without a time and time zone`);
+      else if (!/(Z|[+-]\d\d:?\d\d)$/.test(e.startDate)) defect(p.url, "subject", `${e.type} startDate "${e.startDate}" states no time zone`);
+      const end = Date.parse(e.endDate || e.startDate);
+      if (!isNaN(end) && end + (e.endDate ? 0 : DAY) < now) {
+        defect(p.url, "subject", `${e.type} ${e.endDate ? "endDate" : "startDate"} "${e.endDate || e.startDate}" is in the past: a finished event is not the next one`);
       }
     }
-    if (!withIcs.length) defect(null, "subject", "no page links an .ics calendar file (subjects.md, events)");
   }
+  if (!withIcs.length) defect(null, "subject", "no page links an .ics calendar file (subjects.md, events)");
+}
+
+// Date not announced: the honest page makes no date claim a machine or a
+// visitor could act on, and says plainly that the date is to be announced.
+function lintEventTba() {
+  for (const p of ok) {
+    for (const e of p.facts.ld.flatMap((b) => (b.ok && b.events) || [])) {
+      if (!e.startDate) continue;
+      // A past edition's Event block is an archive record (a results page), not
+      // a claim about the next date. Only a current or future date is a claim.
+      const end = Date.parse(e.endDate || e.startDate);
+      if (!isNaN(end) && end + (e.endDate ? 0 : 86400000) < Date.now()) continue;
+      defect(p.url, "subject", `date is TBA, but ${e.type} JSON-LD claims startDate "${e.startDate}"`);
+    }
+    if (p.facts.ics) defect(p.url, "subject", "date is TBA, but the page links an .ics calendar file");
+    if (p.facts.countdown) defect(p.url, "subject", `date is TBA, but the page has a countdown (${p.facts.countdown})`);
+  }
+  if (!ok.some((p) => p.facts.tba)) defect(null, "subject", "date is TBA, but no page says so (an honest \"to be announced\" line and an updates route, subjects.md)");
 }
 
 // --------------------------------------------- transition smoke test ----
@@ -497,13 +688,16 @@ if (TRANSITIONS === "vt" && homeRec) {
   }
 }
 
-// One click from home to the target. Chrome raising "InvalidStateError:
-// Transition was aborted" on the incoming page is NOT scored as a page defect:
-// in measurement it came from the browser, not page code. Headless Chrome 153
-// aborts an inbound cross-document transition when a parser-blocking script
-// delays the new page's first render (a plain busy loop reproduces it; the
-// same pages with the engine loaded `defer` do not). It is counted and printed
-// as a browser-level note so a reader can see it and decide.
+// One click from home to the target. A transition that Chrome skips or aborts
+// on the incoming page (pagereveal carries no viewTransition, or its promise
+// rejects with InvalidStateError) is NOT scored as a page defect; it is counted
+// and printed as a note so a reader can see it and decide. What is measured
+// (lab/tests/engine/vt, Chrome 153, headless and headed alike): Chrome reads
+// the incoming page's @view-transition rule when it lifts the render block; if
+// the rule is only in an external stylesheet and the page compiles a large
+// script, that sheet has not applied yet and Chrome skips ("ViewTransition
+// opt-in disabled"). Rule external only: 0 of 6; inline in <head>: 6 of 6. The
+// per-page "transition" check flags the external-only case as a defect.
 async function smokeOnce(target, t) {
   const d = await open(desk, homeRec.url);
   await d.page.addInitScript(() => {
@@ -609,10 +803,11 @@ if (transitionSmoke) {
   const t = transitionSmoke;
   console.log(`transition smoke: ${t.from} -> ${t.to}, navigated ${t.navigated} of ${t.runs}, view transition ran ${t.ran} of ${t.runs}` +
     `, document.startViewTransition ${t.startViewTransition ? "present" : "absent"} in this Chrome`);
-  if (t.aborted) {
-    console.log(`  BROWSER NOTE (not a page defect): Chrome aborted the view transition in ${t.aborted} of ${t.runs} runs ` +
-      "(InvalidStateError: Transition was aborted). Seen when a parser-blocking script delays the incoming page's " +
-      "first render; loading scrollcraft.js with defer removed it in measurement.");
+  if (t.ran < t.navigated) {
+    console.log(`  TRANSITION NOTE (not scored): the view transition ran on ${t.ran} of ${t.navigated} navigations` +
+      (t.aborted ? ` (${t.aborted} aborted with InvalidStateError)` : "") + ". The usual cause: @view-transition declared only in an external stylesheet on a page that " +
+      "loads a large script, so Chrome sees no opt-in when it lifts the render block. Declare it inline in <head> " +
+      "(site.md §5); the per-page transition check reports the pages where it is not.");
   }
 }
 if (shoot) {

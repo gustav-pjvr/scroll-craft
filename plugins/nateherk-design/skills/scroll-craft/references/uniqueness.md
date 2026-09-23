@@ -47,6 +47,16 @@ which is what happens when a grammar is a preference instead of a constraint.
 Pick one. Do not blend two: a chaptered page with a continuous world underneath
 is a filmic one-shot with extra headings.
 
+**What binds and what does not.** A grammar's **Forbids** and its **Bans**
+bind: they are the constraints that make it that grammar. Its **Typical nav,
+hero, close** line does not. It describes the shape most pages in that
+grammar take, which makes it the first guess (§6) and the shape to diverge
+from, not a prescription. Satisfy the forbids with a nav, hero and close
+derived from this subject. Where a typical hero has no photograph (a title
+page, a type poster, a live surface), the layered-hero preference in
+hero-depth.md is met with the grammar's own material: type on separate
+planes, the surface's own layers.
+
 ---
 
 ### 2.1 Filmic one-shot
@@ -65,9 +75,13 @@ each act handing off before the last has left.
 hard cuts between grounds; any chrome that implies the page is a tool; more than
 one entry point. If the visitor can jump, it is not one shot.
 
-**Nav, hero, close:** fixed minimal bar, wordmark and one CTA. Full-bleed scrub
+**Typical nav, hero, close:** fixed minimal bar, wordmark and one CTA. Full-bleed scrub
 hero, corner-anchored kinetic headline on a greet cue. Pinned close with a
-spotlight and a magnetic CTA.
+spotlight and a magnetic CTA. This is word for word the shape §1 found on all
+four template-like builds, which makes it the most taken shape in this file.
+Diverge from it on purpose: the hero is a layered scene by default, not a
+scrub, and the close is derived from the subject, not a spotlight and a
+magnet.
 
 **Leans on:** a layered hero, `pin`, `drift`, `kinetic`; `scrub` only with a
 Video justification. **Bans:** nothing structural, which is exactly why it is
@@ -95,7 +109,7 @@ ground, not an interpolation); the full-bleed scrub hero; pinned crossfade type
 acts; a magnetic CTA; centred hero copy. Media never bleeds under type here, it
 sits in its own column with a caption.
 
-**Nav, hero, close:** no fixed bar. A folio in the margin, chapter number and
+**Typical nav, hero, close:** no fixed bar. A folio in the margin, chapter number and
 title, updating as chapters pass. The hero is a **title page**: type on the
 paper ground, no media above the fold, the media starts in chapter one. The
 close is a colophon or masthead plate, small type, the CTA set as a line of
@@ -124,7 +138,7 @@ footage. Copy lives in the surface's own idiom: labels, tooltips, empty states,
 status lines, a help panel. A section heading in 6rem display type breaks this
 grammar instantly.
 
-**Nav, hero, close:** app chrome replaces nav. A sidebar, a tab strip, a status
+**Typical nav, hero, close:** app chrome replaces nav. A sidebar, a tab strip, a status
 bar, a breadcrumb, whatever the real product would have, and it is real enough
 to be the navigation. The hero is the surface already in a state, not a title.
 The close is an **actual input**: a command line, a field, a first-run step,
@@ -176,7 +190,7 @@ travel, authored into the world, not interpolated between legs). Nothing may
 scroll *over* the canvas: copy arrives inside it, at waypoints, in the fixed
 copy layer. The only element in document flow is the spacer.
 
-**Nav, hero, close:** the nav is a **map**. A waypoint list, a depth readout, a
+**Typical nav, hero, close:** the nav is a **map**. A waypoint list, a depth readout, a
 position marker, and it is clickable, because a world you cannot skip around in
 is a video. The hero is an establishing position inside the world, not a
 separate title stage. The close is arrival at a place in the same canvas, and
@@ -214,7 +228,7 @@ motion.
 any kind, and decorative motion. If a device is doing the work instead of the
 typography, the grammar has already failed.
 
-**Nav, hero, close:** the wordmark is set as part of the composition, at
+**Typical nav, hero, close:** the wordmark is set as part of the composition, at
 composition scale, not as a 14px bar item. There may be no persistent nav at
 all. The hero is a single word or one line at extreme scale, filling the
 viewport, with a real `<h1>` behind it. The close inverts the whole page: the
@@ -251,7 +265,7 @@ copy over media; persuasion in the object labels. A label reads
 feel.` Every object gets the same label schema, no exceptions, because the
 schema is what makes it a collection instead of a grid.
 
-**Nav, hero, close:** the nav is an **index of objects**, and it jumps. The hero
+**Typical nav, hero, close:** the nav is an **index of objects**, and it jumps. The hero
 is object one, already in view, already labelled, with no separate title
 treatment: the collection starts at the top of the page. The close is either the
 last object or an inquiry plate typeset exactly like a label, so the ask reads
@@ -284,7 +298,7 @@ corner-anchored hero; a symmetric close. Neither column may be decorative, both
 carry real content the whole way down. The instant one side becomes a caption
 for the other, this collapses into a zigzag layout with extra steps.
 
-**Nav, hero, close:** no bar. The **divider is the chrome**, and it carries the
+**Typical nav, hero, close:** no bar. The **divider is the chrome**, and it carries the
 labels for both sides plus the progress of the argument. The hero establishes
 the split at 50/50 on the first screen, with both headlines readable at once, so
 the visitor understands the format before they scroll. The close is the
@@ -317,7 +331,7 @@ held.
 inverse of the filmic one-shot: where that one hides its seams, this one is
 made of them.
 
-**Nav, hero, close:** the bar is loud, not minimal. Full-width, high-contrast,
+**Typical nav, hero, close:** the bar is loud, not minimal. Full-width, high-contrast,
 possibly a marquee, possibly the CTA at the same weight as the wordmark. The
 hero is one screen that cuts to the next in under a viewport, so there is no
 settling shot and no greet-and-hold. The close is abrupt: the last cut is the
@@ -326,6 +340,16 @@ CTA, at full bleed, no spotlight, no drift-down.
 **Leans on:** `flow` + `in` at short stagger, `reveal` on nearly every section,
 `count` if the figures are real, hard `drift` steps between adjacent grounds.
 **Bans:** `pin`, `spotlight`, `magnet`, `dwell`, `parallax`.
+
+**The cutlist hero and the layered-hero preference.** The ban is on
+`parallax` as continuous drift, not on depth. A cutlist hero keeps its planes
+and makes them cut rather than drift: each plane jumps on a hard step keyed
+to scroll (a new position, scale or crop, landing whole), the foreground
+overtakes the subject in discrete moves, and occlusion does the depth work
+that differential speed does elsewhere. Drive the steps in the page's own
+code from the act's `--sc-p`, which an unpinned act publishes across its
+whole visible life, quantised to a few hard values. That satisfies both hero-depth.md and this grammar; a flat hero with
+no planes satisfies neither.
 
 **The taste floor still applies at speed.** Fast is not an excuse for a
 1.2 second entrance that the reader outruns. Cue windows here are short *and*
@@ -337,18 +361,27 @@ outright while feel.md insists the peak gets the most scroll room and the
 biggest hold. Those pull in opposite directions, and the quiet failure is a
 build that reaches for `pin` at its peak and still calls itself a cutlist.
 
-**Hold in the fixed chrome layer, and keep every act short and unpinned.** The
-loud bar this grammar already asks for is a persistent element that does not
-belong to any act, so it can unfurl, run a long choreography and hold as long as
-the peak needs while the acts underneath keep cutting at full speed. Drive it
-from page scroll rather than from an act's `--sc-p`, since the whole point is
-that it outlives the act it started in. The airfield build's departures board
-runs its entire peak (unfurl, populate, cascade, reveal, hold, collapse) in
-the chrome, with no pinned act anywhere on the page and nothing over 1.3vh.
+**Two resolutions that keep the grammar, both techniques rather than
+compositions.**
+
+- **Hold in a fixed layer, and keep every act short and unpinned.** A
+  persistent element that does not belong to any act (the loud bar this
+  grammar's typical shape has, or any fixed layer the page draws) can run a
+  long choreography and hold as long as the peak needs while the acts
+  underneath keep cutting at full speed. Drive it from page scroll rather than
+  from an act's `--sc-p`, since the whole point is that it outlives the act it
+  started in. The airfield build did this with a departures board that
+  unfurled from its bar. That board, and a bar that unfurls into the peak, are
+  a taken example (§6): use the technique, not the composition.
+- **Peak by density.** On a page of cuts, the peak can be the stretch where
+  the cuts come fastest, largest and closest together: a burst of full-bleed
+  frames inside one viewport-height, each landing whole. It stays inside every
+  ban and it is the loudest thing a cutlist can do with its own vocabulary.
 
 The general form: **when a grammar bans the device your peak wants, move the
-peak out of the act stack rather than breaking the grammar.** The bans are on
-what the acts do, not on what the page can do.
+peak out of the act stack, or build it from the grammar's own vocabulary,
+rather than breaking the grammar.** The bans are on what the acts do, not on
+what the page can do.
 
 ---
 
@@ -538,6 +571,43 @@ Learn why each works, then do something else that comes from this subject.
 The same holds for any site the client or a reference names: take the reason
 it works, never its layout.
 
+**What "taken" means, precisely.** Taken is the **specific named example**:
+a particular move or composition these docs describe as something a build
+did. The trace rail, the pull-apart wordmark, the self-drawing line drawing,
+the running receipt and the regrading control in §3; Sonder's mountains, red
+dress, gallery-frame exit; each approved site's spatial encounter and
+interaction; the airfield departures board; template.html's act order; the
+four-build shape in §1; any row in EXAMPLES.md or your own registry.
+
+**Not taken:** the vocabulary those examples are made of. The eight grammars,
+the device kit, the worlds, and general techniques (layered planes, a peak
+held in a fixed layer, a pinned close, a stepped reveal, a canvas driven from
+`--sc-p`) are there to be used. Using a grammar is not copying the build that
+used it; reproducing its specific composition is. The test is the one in
+§3: describe your version to someone who knows the example. If they would
+say "that is the departures board again", it is taken.
+
+When a grammar's text and this section seem to disagree, this section
+decides: the grammar's typical shape is a starting point (§2), and nothing in
+§2 obliges a build to use a taken example.
+
+### The one fact only this subject has gets its own moment
+
+Every subject has at least one true thing no competitor can claim: the only
+marathon that crosses the Equator, the only distillery on a particular
+island, a founder who built the first unit in a named garage. Find it in the
+interview and the brand material, write it in BRIEF.md, and give it **a
+visual moment of its own**: an act, a scene, or the peak itself, where the
+visitor sees the fact happen rather than reads it. A headline stating the fact
+is not a moment.
+
+The first real build had one of the best unique facts a subject can have, and
+it appeared as a heading, a hedge and a small "0°" hairline beside a photo.
+The route crossing the Equator never became something the visitor watched
+happen. The swap test passed on the words alone, which is exactly why this is
+a separate check: a page can be about its subject in copy and generic in
+everything the eye does.
+
 ### Three tests before markup
 
 Run all three on the plan, after the score table and before the first line of
@@ -562,8 +632,9 @@ HTML. Run them again on the finished page during Step 5.
 
 BRIEF.md carries an **Originality** block: the "comes from" line for the hero,
 the signature move and the close; each first-guess idea and whether it was
-dropped or how it was made unmistakable; and the swap-test and describe-it
-results. The final report restates the block against the finished page. A
+dropped or how it was made unmistakable; the swap-test and describe-it
+results; and the subject's one unique fact with the act where it becomes a
+visual moment. The final report restates the block against the finished page. A
 build that cannot fill the block honestly is not ready to build, and a
 generated page that fails any of the three tests at Step 5 goes back to Step 2,
 not to a styling tweak.

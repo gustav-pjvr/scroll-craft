@@ -4,6 +4,61 @@ Dated notes on what changed in the skill and which build's finding drove it.
 Builds live in `OtherWorlds/Ultimate Websites/builds/`; each carries a
 `BUILD-REPORT.md`.
 
+## 2026-09-23 (round 2): what the first real build taught
+
+A fresh Opus session followed the installed skill cold and built a four-page
+client event site from the client's archived photos. Gustav's verdict:
+good, but the hero was lacking, it should have gone further, the motion felt
+laggy, and it never noticed the connectors it had. The builder also returned
+thirteen points of skill feedback. Measurement settled the lag: 60 fps
+throughout, so the problem was feel, not frames: a pinned hero whose planes
+travelled about 1% of the viewport, and flow sections that began a 620 ms
+fade only once already on screen.
+
+**Tools.** New references/tools.md and a Bootstrap step: inventory the
+session's tools by capability (image generation and editing, background
+removal, upscaling, video, 3D, fonts, research, design tools, browser
+automation) before planning assets, prefer a real tool to a workaround, and
+get the user's explicit yes, with the cost stated, before spending credits or
+uploading a client's files. kie.ai is one option, not the default. (Claude
+Code's `allowed-tools` only pre-approves tools; it never hid them.)
+
+**Ambition and motion feel.** "Restraint" now means purposeful, not timid:
+the hero is a scene, the peak is the most ambitious thing on the page (the
+part someone would screen-record), and the subject's one unique fact gets a
+visual moment. taste.md gains Motion feel rules (minimum travel, reveals that
+start as content enters, no transition chained onto a scroll-driven value,
+incremental canvas drawing, 4x CPU testing).
+
+**Harness.** shoot.mjs grades only visible ink (a foreground plane over the
+text, or box padding, no longer fails contrast), flags TEXT UNDER CHROME
+(the build's clipped eyebrow, which ten rounds of shots missed) and
+NEAR-STATIC PINNED ACT (visible layers under 5% of the viewport).
+site-check.mjs gains `--date-tba` for an event whose date is not announced,
+enforces a time zone on a claimed startDate, and checks that every page
+declares `@view-transition` inline in `<head>`.
+
+**View Transitions, root cause.** The build's page transitions ran on 1 of 6
+navigations. Chrome reads the incoming page's opt-in when it lifts the render
+block; declared only in an external stylesheet on a page that compiles a large
+script (the engine or any 90 KB script), the sheet has not applied yet and
+Chrome skips with "ViewTransition opt-in disabled". Inline in `<head>`: 6 of
+6, headed and headless. Round 1's advice that `defer` fixes it was wrong and
+is withdrawn.
+
+**Engine.** Token defaults on `:where(:root)`, so author tokens win in any
+link order (the build's fonts and accent had silently fallen back);
+`data-sc-reveal` works on flow content outside an act; reduced motion no
+longer leaves dead pinned scroll on a pan act, and a built-in focus handler
+brings a focused rail item into view.
+
+**Docs.** A supplied-photographs route (export at rendered size times DPR,
+never enlarge; real cutouts through the session's tools); an honest
+"date not yet announced" event path; uniqueness.md reconciled with §6 (a
+grammar's typical nav, hero and close is the shape to diverge from, and only
+the named examples are taken); Step 1 no longer re-asks under delegation;
+the template loads the engine with `defer` and carries the inline opt-in.
+
 ## 2026-09-23: fork additions by Gustav, 0.4.0
 
 Gustav's fork (`gustav-pjvr/scroll-craft`, branch `gustav/extensions`, based on

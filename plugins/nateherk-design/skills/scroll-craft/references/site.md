@@ -62,7 +62,18 @@ fill a shape.
 The six colours and two fonts that theme `scrollcraft.css` (SKILL.md Step 4)
 move into their own `tokens.css`, linked by every page before
 `scrollcraft.css` (or `scrollcraft-section.css` on an inner page that mounts
-a section rather than the whole page):
+a section rather than the whole page). The engine declares its defaults on
+`:where(:root)`, which has zero specificity, so an author `:root` block wins
+in any link order; linking tokens first is only a convention, because it reads
+top to bottom as "brand, then mechanism". Before that change, tokens linked
+first lost to the engine's own `:root` defaults at equal specificity, which
+the first real site build hit.
+
+The section stylesheet does the same with `:where(.sc-scope)`. A host page
+themes a mounted section with its own `.sc-scope { --sc-... }` or
+`#story { --sc-... }` rule, and it wins wherever it is linked. A host's
+`:root` tokens do not leak into the scope: the section keeps its own defaults
+until the host sets them on the scope itself.
 
 ```html
 <link rel="stylesheet" href="tokens.css">
@@ -96,11 +107,29 @@ Three options, in order of cost. Record the choice in BRIEF.md.
 
 **Cross-document View Transitions, the default.** Zero JavaScript,
 progressive (a browser without support just navigates), and it works on a
-static host with no server logic. Declare it once in `tokens.css`:
+static host with no server logic. **Declare the opt-in inline in every
+page's `<head>`, never only in an external stylesheet:**
+
+```html
+<head>
+  <style>@view-transition { navigation: auto; }</style>
+  <link rel="stylesheet" href="tokens.css">
+  ...
+```
+
+Chrome decides whether to run the transition at the moment it lifts the
+incoming page's render block, and at that moment it reads the incoming
+document's `@view-transition` rule. When the rule lives only in an external
+stylesheet and the page also compiles a large script (the engine is about
+90 KB), that stylesheet has not been applied yet, Chrome sees no opt-in and
+skips the transition; its trace says `SkipTransition` with reason
+"ViewTransition opt-in disabled". Measured in Chrome 153, headed and
+headless alike: rule external only, the transition ran on 0 of 6
+navigations; the same pages with the rule inline in `<head>`, 6 of 6. Any
+large script reproduces it, not only the engine, and `defer` neither causes
+nor prevents it. The rest of the transition styling can stay in `tokens.css`:
 
 ```css
-@view-transition { navigation: auto; }
-
 ::view-transition-old(root),
 ::view-transition-new(root) { animation-duration: 0.32s; }
 
@@ -123,13 +152,9 @@ subject on both pages (the home hero's product shot reappearing on its case
 study). Naming two different things with the same transition name is a
 worse jump cut than no transition at all.
 
-**Load the engine with `defer` on every page that transitions.** Chrome
-aborts the incoming cross-document transition when a parser-blocking script
-delays the new page's first render, and the navigation then lands as a hard
-cut. Measured in headless Chrome 153: a plain blocking `<script>` aborted 4 of
-5 navigations, the same script with `defer` aborted 0 of 5. A deferred script
-runs before `DOMContentLoaded`, so mount there rather than in an inline script
-(which would run before the engine exists):
+If you load the engine with `defer`, as template.html does, mount on
+`DOMContentLoaded`: a deferred script runs just before that event, and an
+inline mount call would run before the engine exists.
 
 ```html
 <script src="scrollcraft.js" defer></script>
@@ -141,9 +166,10 @@ runs before `DOMContentLoaded`, so mount there rather than in an inline script
 The engine on the outgoing page simply dies with the document; there is no
 lifecycle work, because nothing survives the navigation to clean up.
 
-**Barba.js or an SPA router, the alternative.** Choose this when the site is
-already an SPA, or needs a transition the platform cannot do (a shared video
-element that must keep playing across the navigation). It uses the
+**Barba.js or an SPA router.** Choose this when the site is already an SPA,
+or needs a
+transition the platform cannot do (a shared video element that must keep
+playing across the navigation). It uses the
 lifecycle API (`destroy()` on leave, `mount()` on enter):
 
 ```js
@@ -210,7 +236,11 @@ per page, no broken links, no console errors, no failed requests, no
 horizontal overflow at 390px wide, and, when BRIEF.md declares transitions,
 `@view-transition` present in a loaded stylesheet. It shoots top, middle and
 bottom at 1440 by 900 and 390 by 844 and tiles a `site-sheet.png`, and it
-runs the ordinary `shoot.mjs` pass on the home page.
+runs the ordinary `shoot.mjs` pass on the home page. It runs the TEXT UNDER
+CHROME check on every page's six shots. For an event whose date is not announced,
+pass `--date-tba` (or `--brief <path>` so it reads the TBA state from
+BRIEF.md) and it checks for the absence of date claims instead of their
+presence (subjects.md, verify.md).
 
 It does not grade contrast. That stays `shoot.mjs`'s job on the home page;
 inner pages are static documents and get the standard contrast check

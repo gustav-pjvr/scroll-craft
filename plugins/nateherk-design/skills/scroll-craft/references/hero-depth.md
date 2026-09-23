@@ -12,6 +12,43 @@ records.
 
 This preference applies to the hero, not to every section of every website. Preserve the requested brand, content, framework, and functionality. Honor explicit static or simpler directions. Working surfaces such as dashboards do not need an invented marketing hero.
 
+## A scene, not a name over a photo
+
+The hero is the first thing every visitor sees and the second thing, after the
+peak, that anyone screen-records. It has to be a scene: a place with depth
+that changes under the hand. A name set over one photograph, however good the
+photograph, is a poster, and a poster with four image files that barely move
+is still a poster.
+
+A scene has, at minimum:
+
+- **Planes that visibly separate.** Across the hero's pin, the fastest plane
+  and the slowest plane must separate by at least about 6% of the viewport
+  height (roughly 55 to 60px on a 900 to 1000px-tall screen), and something in
+  the frame must change on every notch of the wheel. Under about 3% it reads
+  as a still. The first real build moved its planes 1.4vh and 1.3vw across a
+  1.5-viewport pin, about 1% of the viewport, and every frame on its contact
+  sheet looked the same. The builder's own verdict on the finished hero:
+  "structurally it is still big name over a race photo".
+- **A camera idea.** One coherent move the planes express together: a
+  push-in, a lateral travel with the subject, a descent, the scene opening
+  around the subject. Differential rates without a camera idea read as things
+  sliding around.
+- **A change the visitor can name.** By the end of the pin something is
+  different: the headline has passed behind the subject, the foreground has
+  cleared, the light has moved, a second line has arrived, the scene has
+  turned into the next section. Write the opening, the midpoint and the exit
+  in one line each before generating assets (approved-collection.md §2).
+
+The ceiling still holds: a single layer sliding more than about 200px against
+its own frame stops reading as depth (devices.md §6). Past that, get the extra
+drama from scale (a push-in), occlusion and light, not from more travel.
+
+Where the grammar's typical hero has no photograph (a title page, a type
+poster, a live surface), the scene is built from that grammar's own material:
+type on separate planes, the surface's own layers. The requirement is depth
+that changes under the hand, not a photograph.
+
 ## Plan the depth before generating assets
 
 - Identify the background, focal subject, foreground, and any natural atmospheric layers. Name what moves independently, what overlaps, and what must stay physically connected.
@@ -32,14 +69,49 @@ Use supplied photography or authorized image-generation tools. For a photographi
 
 Atmosphere can occupy both a rear and a front plane when it supports the scene. It should create separation, not obscure the subject or wash out the whole image.
 
-## Choreograph restrained motion
+## From supplied photographs
 
-- Use one coherent camera idea and purposeful transitions. Premium means controlled movement and good timing, not constant movement everywhere.
+The client's own photographs are the best material a hero can have, and the
+route needs the same planes as a generated scene. Export sizes, formats and
+the resolution check are in [assets.md](assets.md), "Supplied photographs".
+For the hero specifically:
+
+1. **Pick for separability, not only for beauty.** A photograph whose subject
+   stands clear of its background against a readable edge cuts cleanly; one
+   where the subject melts into a busy ground does not. Check the original's
+   pixel size before choosing it for a full-bleed plane.
+2. **Cut the subject with a real tool.** Background removal or subject
+   selection from the session's tools ([tools.md](tools.md)) gives a genuine
+   alpha cutout. Inspect it against light and dark grounds as above.
+3. **Rebuild the plate behind it.** A generative fill or expand tool fills the
+   hole the cutout leaves. Without one, choose a composition where the subject
+   never travels far enough from its hole to expose it, or build the plate
+   from a second photograph of the same place.
+4. **Keep every plane registered.** Export all planes from the same crop at
+   the same scale, so the cutout sits exactly over its own hole at rest. The
+   phone planes come from the phone crop, not from shrinking the desktop set.
+5. **Masks only when no tool exists.** A hand-drawn SVG path or a CSS mask is
+   a coarse edge; say in the report that it is a fallback and why. The first
+   real build masked its hero by script because nobody checked the inventory,
+   while the same session had background removal and generative fill.
+
+## Choreograph purposeful motion
+
+- Use one coherent camera idea and purposeful transitions. Premium means motion that means something and good timing, not constant movement everywhere. When the hero moves, it moves with conviction: enough travel to be seen on every notch, in one direction, resolving somewhere. Timid motion is not restraint; it reads as a still photograph that stutters.
 - Keep essential copy and calls to action as semantic HTML. Establish deliberate layer order for typography, subject, foreground, and atmosphere.
 - Prefer composited transforms and opacity, a shared scroll progress value, and requestAnimationFrame updates. Avoid rendering the whole page again on every scroll tick.
 - Subtle pointer response is optional. It must not be the only way to experience the hero. Never capture or lock the desktop cursor for this effect.
 - Pause offscreen ambient work. Honor reduced-motion preferences and provide a usable static composition without extra pinned scroll space or hidden essential content.
 - Load the required scene assets together before switching from a complete poster fallback. Avoid partial scenes, flashes, ghost subjects, or a broken hero when a layer fails.
+
+## Keep the hero clear of the header
+
+A fixed or sticky header covers the top of the first screen. The hero's
+copy, its eyebrow line included, starts below the header's height at every
+width, and a headline that passes behind the subject still passes below the
+header. The first real build clipped its "EVENT NAME" eyebrow under its own
+fixed bar and shot the page ten rounds without noticing. Use the
+`--sc-chrome-h` token from taste.md, "Fixed chrome".
 
 ## Art-direct mobile separately
 
@@ -49,7 +121,10 @@ Do not merely shrink the desktop composition. Adjust crop, subject position, con
 
 Use the verification tools and permissions applicable to the build. Inspect the actual opening, an intermediate scroll position, the final hero transition, and the mobile composition. Check:
 
-- Distinct layers visibly move at different rates.
+- Distinct layers visibly move at different rates, and the fastest and slowest plane separate by at least the minimum travel above. Put the first and last hero frames of the contact sheet side by side: if you have to look twice to see the difference, the hero is near-static.
+- The hero reads as a scene with a camera idea and an exit, not a name over a photo, and a screen recording of it would hold someone's attention for its whole length.
+- No text, eyebrow included, sits under the fixed header at desktop or phone width.
+- Every plane has at least as many pixels as it is shown at times the device pixel ratio (assets.md).
 - No duplicate subjects, holes, cutout halos, floating contact points, or abrupt seams appear.
 - The opening headline is readable, and the scroll produces a clear change in what the visitor sees or understands.
 - The scene resolves cleanly into the next section.

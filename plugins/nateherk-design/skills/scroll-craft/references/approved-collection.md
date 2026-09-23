@@ -16,7 +16,9 @@ before generating imagery or drawing a replacement mark. Open the assets;
 filenames are not proof of their contents. An app icon named for one service
 turned out to depict another. Correct the identity, not just its filename.
 
-For an existing product, inspect its current official website and documentation.
+For an existing product, inspect its current official website and documentation,
+with the scraping, search and browser tools from your inventory
+([tools.md](tools.md)) rather than from memory.
 Record audience, offer, supported platforms, real destinations, and which facts
 remain uncertain. Separate a free community from its paid classroom when
 labeling screenshots. Do not invent testimonials, availability, nutrition,

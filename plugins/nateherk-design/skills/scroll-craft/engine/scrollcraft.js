@@ -47,13 +47,20 @@
                               (path template : frameCount : startIndex).
      data-sc-pan="0.6"        on a wide rail inside data-sc-act="pan". p drives
                               horizontal travel. Value = extra travel multiplier.
-     data-sc-parallax="-0.2"  translateY by rate * act-progress * viewport.
-                              Negative = moves up faster than scroll (recedes).
+     data-sc-parallax="-0.2"  translateY = rate * (p - 0.5) * 100px: zero at
+                              mid-act, so a rate of -1 travels 100px up across
+                              the act. Negative = moves up as the act advances
+                              (recedes); the offset is in px, not viewports.
      data-sc-cue="0.1 0.5"    opacity/rise keyed to p. One value = enter+hold.
                               Two = enter..leave. Add a third for the hold point.
      data-sc-kinetic="lines"  lines | words | chars. Splits the element and
                               staggers its reveal across the cue window.
      data-sc-reveal="up"      up | down | left | right | iris. clip-path wipe.
+                              Inside an act it is driven by p (data-sc-reveal-at).
+                              Outside any act it fires once on entry, like
+                              data-sc-in (checked on the scroll read, because
+                              an observer never sees a fully clipped target;
+                              a CSS transition carries the wipe).
      data-sc-count="0 4200"   number bloom across the cue window. Outside any
                               act it ticks up once on entry instead, over
                               data-sc-count-ms (default 1400).
@@ -464,6 +471,7 @@
     var rafTick = 0, rafPointer = 0, rafScroll = 0;
     var subscribers = [];
     var moved = [];       // { el, parent, next } DOM moves to undo (worldflight copy layer)
+    var flowReveals = []; // { el, dir, fired } data-sc-reveal outside any act
     function listen(t, type, fn, o) {
       t.addEventListener(type, fn, o);
       subs.push({ t: t, type: type, fn: fn, o: o });
@@ -883,6 +891,29 @@
       Array.prototype.forEach.call(root.querySelectorAll('[data-sc-in]'), function (el) { addClass(el, 'sc-in'); });
     }
 
+    // ---- flow reveals: data-sc-reveal outside any act (fire once) --------
+    // The same wipe an act drives from p, but keyed to entry: the closed edge
+    // is written now, the open one when the element enters (a CSS transition
+    // on .sc-reveal--flow carries the move). Reduced motion shows it settled
+    // through the stylesheet's clip-path: none rule, so nothing here fights it.
+    // Entry is detected in read(), not by an IntersectionObserver: Chrome
+    // clips the observed rectangle by the target's own clip-path, so a fully
+    // closed wipe never intersects anything and the observer never fires.
+    flowReveals.length = 0;
+    Array.prototype.forEach.call(root.querySelectorAll('[data-sc-reveal]'), function (c) {
+      if (c.closest('[data-sc-act]')) return;
+      var dir = c.getAttribute('data-sc-reveal') || 'up';
+      snap(c);
+      addClass(c, 'sc-reveal--flow');
+      c.style.clipPath =
+        dir === 'down' ? 'inset(100% 0 0 0)' :
+        dir === 'left' ? 'inset(0 100% 0 0)' :
+        dir === 'right' ? 'inset(0 0 0 100%)' :
+        dir === 'iris' ? 'circle(0% at 50% 50%)' :
+                         'inset(0 0 100% 0)';
+      flowReveals.push({ el: c, dir: dir, fired: false });
+    });
+
     // ---- entry counters (fire once) --------------------------------------
     // A [data-sc-count] outside any pinned act is not scrubbed by scroll; it
     // ticks up once when it enters view, over data-sc-count-ms (default 1400).
@@ -939,7 +970,11 @@
       if (!alive) { deadWarn('layout'); return; }
       vh = innerHeight; vw = innerWidth;
       acts.forEach(function (a) {
-        if (a.pinned) a.el.style.height = (a.span * 100) + 'vh';
+        // Reduced motion hands a pan act's travel back as a native horizontal
+        // scroll region (scrollcraft.css), so the pinned span would be dead
+        // scroll: nothing moves for the whole of it. Collapse it to its
+        // content height instead; the stage still fills one viewport.
+        if (a.pinned) a.el.style.height = (reduce && a.device === 'pan') ? '' : (a.span * 100) + 'vh';
       });
       // The spacer is the whole document flow of a worldflight. Its height is
       // the sum of the leg weights plus one viewport: without that extra screen
@@ -1419,6 +1454,19 @@
 
       for (var w = 0; w < worlds.length; w++) readWorld(worlds[w]);
 
+      // Flow reveals: open once the element's top is inside the lower 88% of
+      // the viewport (the same edge the data-sc-in observer uses).
+      for (var fr = 0; fr < flowReveals.length; fr++) {
+        var FR = flowReveals[fr];
+        if (FR.fired) continue;
+        var frr = FR.el.getBoundingClientRect();
+        if (frr.top < vh * 0.88 && frr.bottom > 0) {
+          FR.fired = true;
+          FR.el.style.clipPath = FR.dir === 'iris' ? 'circle(78% at 50% 50%)' : 'inset(0 0 0 0)';
+          addClass(FR.el, 'sc-in');
+        }
+      }
+
       // background drift
       for (var d = 0; d < drifts.length; d++) {
         var D = drifts[d];
@@ -1664,6 +1712,34 @@
       if (!el || !el.closest) return;
       var act = el.closest('[data-sc-act]');
       if (!act || !root.contains(act)) return;
+      // Focus inside a horizontal rail. The rail's transform is its
+      // navigation, so a focused item can sit far off the right edge with the
+      // page parked at the act's top. Scroll the page to the point in the
+      // act's travel where that item is centred (the same value read() will
+      // compute), and under reduced motion, where the rail is a native scroll
+      // region and the act is not pinned, let the region bring it in.
+      var railEl = el.closest('[data-sc-pan]');
+      if (railEl && act.contains(railEl)) {
+        if (reduce) {
+          try { el.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'instant' }); } catch (e2) { el.scrollIntoView(); }
+          return;
+        }
+        for (var ai = 0; ai < acts.length; ai++) {
+          var A = acts[ai];
+          if (A.el !== act || !A.rail) continue;
+          var over = A.rail.scrollWidth - vw;
+          if (over <= 0) break;
+          var span = over + over * (A.railExtra || 0);
+          var item = el.getBoundingClientRect(), rr = A.rail.getBoundingClientRect();
+          // Both rects carry the same transform, so the difference is the
+          // item's untransformed offset in the rail.
+          var want = clamp01((item.left - rr.left + item.width / 2 - vw / 2) / Math.max(span, 1));
+          var travel = Math.max(A.height - vh, 1);
+          scrollTo({ top: A.top + want * travel, behavior: 'instant' });
+          read();
+          return;
+        }
+      }
       var cue = el.closest('[data-sc-cue]');
       if (!cue) return;
       if (parseFloat(getComputedStyle(cue).opacity || '1') > 0.85) return;

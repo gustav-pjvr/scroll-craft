@@ -160,6 +160,43 @@ number.
 
 ---
 
+## Fixed chrome
+
+A fixed or sticky header paints over whatever sits under it. **The first
+screen's content clears the header's height**, at every width, and so does any
+copy anchored near the top of a pinned stage on the frames where it is meant
+to be read. Content in ordinary flow may scroll under the bar; content that is
+supposed to be read at that moment may not.
+
+The first real build had a header-height token and used it for several
+elements further down the page, but not for the hero name, the one line every visitor
+sees. Its "EVENT NAME" eyebrow sat under the fixed bar, clipped, through ten
+rounds of screenshots.
+
+Make the height a token and use it everywhere the top of the viewport matters:
+
+```css
+:root { --sc-chrome-h: 4rem; }                     /* the bar's rendered height */
+@media (max-width: 860px) { :root { --sc-chrome-h: 3.5rem; } }
+html { scroll-padding-top: var(--sc-chrome-h); }   /* anchors and focus land below it */
+.site-bar { height: var(--sc-chrome-h); }
+.hero__copy { padding-top: calc(var(--sc-chrome-h) + var(--sc-5)); }
+```
+
+- Measure the bar on the render at each breakpoint and set the token to that,
+  including `env(safe-area-inset-top)` if the bar grows with it on a phone.
+- `scroll-padding-top` keeps in-page anchors and keyboard focus from landing
+  under the bar.
+- The check: at scroll position 0, at 1440 by 900 and 390 by 844, no text
+  outside the bar has any part of its box above the bar's bottom edge. Then do
+  the same at the frames where a pinned act's top-anchored copy is at full
+  opacity. `shoot.mjs` reports what it finds as TEXT UNDER CHROME, and
+  site-check runs the same check on every page; look anyway.
+- `--sc-chrome-h` is a page-level token this skill recommends, not one the
+  engine sets. Define it yourself.
+
+---
+
 ## Depth
 
 Depth is the axis that separates a premium page from a styled document, and it
@@ -220,6 +257,61 @@ The scroll devices are the page's motion. Everything else is small and fast.
   hovers on tap.
 - Reduced motion means **fewer and gentler, not zero**. Keep the opacity that
   carries comprehension, drop every position change.
+
+---
+
+## Motion feel: every input answers
+
+A page can hold 60 frames a second and still feel laggy. The first real build
+did exactly that: measured at p95 16.8ms per frame on a desktop, and its owner
+still called the animations laggy. Lag in a scroll page is usually feel, not
+frame rate: the hand moves and the page answers late, or barely, or not at
+all. Five rules, each with the failure that wrote it.
+
+1. **Every scroll input produces visible motion.** A pinned act must visibly
+   change across its whole span, not only at its ends. A hero plane that moves
+   less than a few percent of the viewport over its pin is not a parallax, it
+   is a still: hero-depth.md has the minimum travel (planes separating by at
+   least about 6% of the viewport). The demo hero was pinned for 1.5
+   viewports while its planes travelled about 1%, so the wheel turned and
+   nothing answered. Authored silence is the one exception, and BRIEF.md
+   declares it.
+2. **Reveals start as content enters and finish by the time it is readable.**
+   Never one that starts only once its content is already on screen. The
+   engine's `data-sc-in` fires when the element's top crosses 88% of the
+   viewport height, then runs a 620ms fade plus the stagger. On a wheel flick
+   that is a paragraph the reader is already looking at, still arriving. So:
+   put `data-sc-in` on small groups, not on a wrapper taller than half a
+   screen; keep the stagger at 30 to 50ms over three or four children; never
+   put it on first-screen content; and for anything the reader must see the
+   instant it lands, use a scroll-driven entrance (a cue in a pinned act, or a
+   transform computed from the act's `--sc-p`) that is exactly as far along as
+   the scroll.
+3. **Never chain a CSS transition onto a value scroll already drives.** If the
+   engine or your own code writes a transform or an opacity every frame from
+   scroll, a `transition` on that property eases every write over its
+   duration, and the element trails the hand by that much. devices.md §6 has
+   the phone case (a product plane lagging a full second behind the thumb).
+   Transitions belong to discrete state changes (hover, a class that flips
+   once), never to a value that follows scroll.
+4. **Heavy canvas work redraws incrementally.** Draw only what changed.
+   Cache static layers (the background, anything already settled) to an
+   offscreen canvas and composite it with one `drawImage`. Pre-render a
+   repeated mark (a dot, a glyph) once as a sprite rather than building a path
+   for every instance every frame. Cap the canvas's device pixel ratio at 1.5
+   to 2. Redraw only when the driving value moved, and stop entirely when the
+   canvas is off screen (an IntersectionObserver). The demo peak repainted
+   up to 5,821 arcs from scratch on every frame while the count grew: fine on a
+   desktop, and the likeliest stutter on a phone.
+5. **Test on a phone-class CPU, not only the build machine.** Chrome's CPU
+   throttling at 4x approximates a mid-range phone. Scroll every act with it on
+   and watch for frames that visibly hitch; the procedure is in verify.md,
+   "Phone-class CPU". A desktop that holds 60fps proves nothing about the phone
+   the page is mostly read on.
+
+Motion with conviction is not the opposite of this list, it depends on it.
+When something moves, it moves enough to be seen, in one direction, and
+immediately; a big move that lags reads worse than a small one that answers.
 
 ---
 

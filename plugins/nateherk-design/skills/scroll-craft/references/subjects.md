@@ -17,7 +17,8 @@ a source, or no number.
 
 **Extra questions**, asked in the same Step 0 pass:
 
-- The real date and start time, and the time zone it is stated in.
+- The real date and start time, and the time zone it is stated in, or "not
+  announced yet" (see "Date not yet announced" below).
 - The venue, or the platform if it is online, and the address or the link.
 - The registration platform (Eventbrite, Luma, a ticketing system the client
   already uses) and its URL.
@@ -42,6 +43,53 @@ a source, or no number.
 - A countdown only if the date is real, using the `count` device from
   devices.md §7. A countdown to a date nobody confirmed is a lie with a
   timer on it.
+
+The JSON-LD, `.ics` and countdown bullets apply once a date is announced.
+Until then, the page follows the path below instead.
+
+### Date not yet announced
+
+A recurring event between editions, or a first edition still being planned,
+often has no confirmed date. That is an honest state, and the page says so
+rather than implying a date it does not have. The first real build was
+exactly this (a marathon whose next edition read "Date: TBD" on the
+organisers' own registration page), and the skill had no path for it.
+
+- **No Event JSON-LD for the unannounced edition.** Structured data with a
+  guessed or placeholder date is a false claim that search engines repeat.
+  A past edition's Event JSON-LD (on a results page, with its real date,
+  time and time zone) is an archive record and may stay; `site-check.mjs
+  --date-tba` exempts a past date and flags any current or future one.
+- **No `.ics`, no countdown, no "save the date".** There is no date to put in
+  any of them.
+- **An honest TBA line**, stated plainly where a date would otherwise sit:
+  in the hero or the first screen, and again at the close. "Date to be
+  announced" is enough; do not dress it up as "coming soon" or imply a month
+  the client has not confirmed.
+- **An updates route that really exists**: the organiser's newsletter or
+  mailing list, the registration page that will open, the official social
+  account where the date will be posted. Link to it as the primary CTA with a
+  label that says what it is ("Registration, not open yet" worked on the
+  first build). If no such route exists, say where the announcement will
+  appear and do not invent a sign-up form.
+- **Past editions labelled as past.** Schedules, distances and start times
+  from a previous edition may appear, marked with their year ("as run in
+  2026"), never presented as the next edition's.
+- **Record it in BRIEF.md.** The subject block says "Date: to be announced"
+  and names the updates route. Run `site-check.mjs` with `--date-tba`, or
+  with `--brief <path>` to BRIEF.md so it reads the TBA state from that line.
+  It then asserts the absence of fake date claims (no current or future Event
+  JSON-LD, no `.ics` link, no countdown) and that at least one page says the
+  date is to be announced, instead of demanding the JSON-LD and the `.ics`.
+  It recognises a countdown by `data-sc-countdown` or an id or class naming
+  one, so name any countdown-like element honestly.
+
+When the date is announced, the page switches to the full list above: the
+JSON-LD, the `.ics` and the schedule all come from the one data source, on the
+same day. Without `--date-tba`, site-check requires every Event `startDate`
+to carry a time and a time zone and flags any that is already in the past,
+archive records included, so take a past edition's JSON-LD off when the new
+date goes up.
 
 **Grammar leanings:** rhythmic cutlist (the pulse of an announcement) or
 filmic one-shot (the single-argument case for attending). Both are leanings,
