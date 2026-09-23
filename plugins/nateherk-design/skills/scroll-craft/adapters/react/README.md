@@ -78,7 +78,7 @@ export function Story({ headline }) {
 | `lerp` | engine default | Playhead smoothing |
 | `onReady` | none | `(api) => void`, once per mount |
 | `onRead` | none | Passed to the engine, called after every `read()` |
-| `deps` | `[]` | When its contents change the adapter calls `api.rescan()` |
+| `deps` | `[]` | When its contents change (compared element by element) the adapter calls `api.rescan()` once. The length may change and the prop may come and go; omitted counts as `[]` |
 | `engine` | the default loader | Async function returning the engine (module or object) |
 | `threeD`, `threeDOptions` | none | See "3D" below |
 | `className`, anything else | | Passed to the element. Keep `className` static |

@@ -499,8 +499,22 @@
     var textSnap = new Map();
     var splitSnap = new Map();
     var propSnap = new Map();   // el -> { name: value } for video muted/playsInline/preload
+    // The inline properties the engine writes. Restore touches ONLY these:
+    // anything else on the element (a scroll lock's overflow on <html>, a
+    // framework's own custom property on the root) belongs to someone else
+    // and is left exactly as it is at restore time, not as it was at mount.
+    var ENGINE_PROPS = ['opacity', 'transform', 'visibility', 'z-index', 'pointer-events',
+      'clip-path', 'transition-delay', 'height',
+      '--sc-p', '--sc-canvas', '--sc-seg', '--sc-segp', '--sc-mx', '--sc-my'];
     function snap(el) {
-      if (el && el.nodeType === 1 && !styleSnap.has(el)) styleSnap.set(el, el.getAttribute('style'));
+      if (el && el.nodeType === 1 && !styleSnap.has(el)) {
+        var rec = { hadAttr: el.hasAttribute('style'), props: {} };
+        for (var i = 0; i < ENGINE_PROPS.length; i++) {
+          var v = el.style.getPropertyValue(ENGINE_PROPS[i]);
+          if (v !== '') rec.props[ENGINE_PROPS[i]] = [v, el.style.getPropertyPriority(ENGINE_PROPS[i])];
+        }
+        styleSnap.set(el, rec);
+      }
       return el;
     }
     function addClass(el, cls) {
@@ -553,8 +567,13 @@
       splitSnap.clear();
       textSnap.forEach(function (txt, el) { el.textContent = txt; });
       textSnap.clear();
-      styleSnap.forEach(function (v, el) {
-        if (v === null) {
+      styleSnap.forEach(function (rec, el) {
+        for (var i = 0; i < ENGINE_PROPS.length; i++) {
+          var name = ENGINE_PROPS[i], was = rec.props[name];
+          if (was) el.style.setProperty(name, was[0], was[1]);
+          else el.style.removeProperty(name);
+        }
+        if (!rec.hadAttr && el.getAttribute('style') === '') {
           el.removeAttribute('style');
           // Chrome (measured on 153) re-synthesises an empty style="" from the
           // inline CSSOM after the attribute is removed, lazily, on the next
@@ -562,8 +581,6 @@
           // clears it; on a browser without the quirk the second call is a
           // no-op.
           if (el.getAttribute('style') !== null) el.removeAttribute('style');
-        } else {
-          el.setAttribute('style', v);
         }
       });
       styleSnap.clear();
@@ -594,12 +611,30 @@
     // decoding in the background for the life of the document.
     function releaseClip(V) {
       var v = V.el;
+      // A fetch still in flight is cancelled, not just ignored.
+      if (V.ctrl) { try { V.ctrl.abort(); } catch (e) {} V.ctrl = null; }
       try { v.pause(); } catch (e) {}
       if (v.hasAttribute('src') || v.src) {
         v.removeAttribute('src');
         try { v.load(); } catch (e) {}
       }
     }
+    // Drop every sequence frame's request and reference.
+    function releaseSeqs() {
+      acts.forEach(function (a) {
+        var S = a.seq;
+        if (!S) return;
+        for (var i = 0; i < S.frames.length; i++) {
+          var img = S.frames[i];
+          if (img) { img.onload = null; try { img.src = ''; } catch (e) {} }
+        }
+        S.frames.length = 0; S.loaded = 0; S.drawn = -1; S.partial = false;
+      });
+    }
+    // Bumped by every collect(). A continuation from an earlier collect (a
+    // clip fetch that was in flight across a rescan) sees a stale generation
+    // and bails, so the same <video> is never given two sources.
+    var gen = 0;
 
     // One rate for the page, overridable per clip. Read from the mount root, the
     // document element, or the option bag, in that order.
@@ -615,9 +650,10 @@
         el: v, host: host || v,
         ready: false, loading: false, painted: false,
         cur: 0, target: 0, live: false, stuckAt: 0,
-        lerp: lerpRate(v) || LERP
+        lerp: lerpRate(v) || LERP,
+        gen: gen, ctrl: null
       };
-      snap(v); snapProps(v, ['muted', 'playsInline']); snapAttr(v, 'preload');
+      snap(v); snapProps(v, ['muted', 'playsInline']); snapAttr(v, 'preload'); snapAttr(v, 'src');
       v.muted = true; v.playsInline = true; v.preload = 'none';
       setAttr(v, 'muted', ''); setAttr(v, 'playsinline', '');
       playheads.push(rec);
@@ -629,6 +665,7 @@
     // mount and again on rescan(), against the same arrays (identity kept, so
     // api.acts stays valid).
     function collect() {
+    gen++;
     acts.length = 0; worlds.length = 0; drifts.length = 0; playheads.length = 0;
     tilts.length = 0; magnets.length = 0; spots.length = 0;
     primedCount = 0;
@@ -1019,16 +1056,20 @@
       if (isMobile() && V.el.getAttribute('data-sc-src-mobile')) src = V.el.getAttribute('data-sc-src-mobile');
       if (!src) return;
       V.loading = true;
-      fetch(src).then(function (r) { if (!r.ok) throw new Error(r.status); return r.blob(); })
+      var stale = function () { return !alive || V.gen !== gen; };
+      V.ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+      fetch(src, V.ctrl ? { signal: V.ctrl.signal } : undefined)
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.blob(); })
         .then(function (blob) {
-          // A destroy() while the fetch was in flight: the element is no longer
-          // ours to touch. Drop the blob.
-          if (!alive) return;
+          // A destroy() or rescan() while the fetch was in flight: the element
+          // is no longer this record's to touch. Drop the blob.
+          if (stale()) return;
+          V.ctrl = null;
           // Listeners and preload BEFORE src. Assigning src starts the load, so
           // attaching afterwards and then calling load() restarts it and aborts
           // the first request (visible as ERR_ABORTED on the blob URL).
           listen(V.el, 'loadedmetadata', function () {
-            if (!alive) return;
+            if (stale()) return;
             V.ready = true;
             // Force one seek even when the target is already 0. The reveal is
             // gated on a 'seeked' event, and the raf loop only seeks when the
@@ -1048,7 +1089,7 @@
           // never-played muted video blank, so hiding the poster on metadata
           // alone flashes an empty stage.
           var reveal = function () {
-            if (V.painted || !alive) return;
+            if (V.painted || stale()) return;
             V.painted = true;
             addClass(V.host, 'sc-has-clip');
             addClass(V.el, 'sc-has-clip');
@@ -1069,7 +1110,7 @@
           blobs.push(url);
           V.el.src = url;
         })
-        .catch(function () { V.loading = false; });
+        .catch(function () { V.loading = false; V.ctrl = null; });
     }
 
     // ---- image sequence ---------------------------------------------------
@@ -1477,6 +1518,9 @@
       V.priming = true;
       var done = function () {
         V.priming = false;
+        // The play() promise can settle after destroy() or a rescan(); the
+        // element is not this record's to touch any more.
+        if (!alive || V.gen !== gen) return;
         if (!V.primed) { V.primed = true; primedCount++; }
         try { V.el.pause(); } catch (e) {}
         // repaint: nudge past the deadband so the next tick writes for real
@@ -1674,6 +1718,7 @@
       timers.forEach(clearTimeout);
       timers.length = 0;
       playheads.forEach(releaseClip);
+      releaseSeqs();
       blobs.forEach(function (u) { try { URL.revokeObjectURL(u); } catch (e) {} });
       blobs.length = 0;
       acts.forEach(function (a) { a.el.style.removeProperty('--sc-p'); });
@@ -1708,6 +1753,7 @@
         }
       }
       playheads.forEach(releaseClip);
+      releaseSeqs();
       blobs.forEach(function (u) { try { URL.revokeObjectURL(u); } catch (e) {} });
       blobs.length = 0;
       acts.forEach(function (a) { a.el.style.removeProperty('--sc-p'); });

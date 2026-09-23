@@ -89,6 +89,18 @@ guess (drop the idea every generated site reaches for) and describe it (one
 sentence that fits no other AI-built site). BRIEF.md gains an Originality
 block, and SKILL.md a fifth spine rule, a pre-build check and a hard rule.
 
+**Review fixes.** An independent code review and security review of the fork
+(no critical findings) led to: 3D scenes re-resolving their act after
+`rescan()` instead of freezing on the orphaned record; the 3D environment
+regenerated after a WebGL context restore; `destroy()` and `rescan()`
+restoring only the inline properties the engine wrote, so a host script's
+styles (a scroll lock on `<html>`, a React style prop) are never reset; a
+rescan during a clip download no longer loading the clip twice; in-flight clip
+and sequence downloads aborted on destroy and rescan; the React adapter's
+`deps` compared element by element so its length may change; `device-diag.html`
+accepting only a same-site `?manifest=` capped at 64 candidates; and
+`site-check.mjs` capping browser visits as well as pages.
+
 **Fixes to upstream behaviour.** template.html's two kinetic headings carried
 their cue on the wrapper, so the engine never split them; the cue is now on
 the heading, and devices.md says the two attributes must share an element. The

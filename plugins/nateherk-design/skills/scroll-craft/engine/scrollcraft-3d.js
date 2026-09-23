@@ -281,7 +281,10 @@ function mount(root, opts) {
 
   // ---- engine connection -------------------------------------------------------
   function resolve(S) {
-    if (S.rec && S.api && !S.api.destroyed) return;
+    // Only while the record is still the engine's: rescan() rebuilds the acts
+    // array with new records, and a stale one never moves again, so the scene
+    // would freeze on its last frame.
+    if (S.rec && S.api && !S.api.destroyed && S.api.acts && S.api.acts.indexOf(S.rec) > -1) return;
     S.api = null; S.rec = null;
     const list = opts.api ? [opts.api] : ((globalThis.ScrollCraft && globalThis.ScrollCraft.instances) || []).slice().reverse();
     for (const api of list) {
@@ -455,6 +458,22 @@ function mount(root, opts) {
     S.ctx = { THREE, scene, camera, renderer, model, pivot, key, act: S.act, canvas: S.canvas };
     if (typeof opts.scene === 'function') opts.scene(S.ctx);
     wirePointer(S);
+    // A real context loss (GPU reset, driver update, too many contexts) is
+    // survivable: three rebuilds its own state on restore and re-uploads
+    // anything with source data. The environment has none, it is a PMREM
+    // render target, so it comes back black unless it is made again here.
+    // three's own restore handler was attached first (in the renderer's
+    // constructor), so this runs after it.
+    listen(S.canvas, 'webglcontextrestored', () => {
+      if (!alive || !S.renderer) return;
+      // The old target's GL objects died with the old context; disposing it
+      // now would only make WebGL warn about foreign objects. Drop it.
+      S.envRT = makeEnv(S, S.THREE, S.renderer);
+      S.scene.environment = S.envRT.texture;
+      S.envRestores = (S.envRestores || 0) + 1;
+      S.sizeDirty = true;
+      render(S, isNaN(S.lastP) ? progress(S) : S.lastP);
+    });
   }
 
   function choreograph(S, p, pointer, cam) {
@@ -493,6 +512,11 @@ function mount(root, opts) {
     if (!S.painted) {
       S.painted = true;
       S.addedAct = !S.act.classList.contains('sc-has-clip');
+      S.act.classList.add('sc-has-clip');
+      S.canvas.classList.add('sc-has-clip');
+    } else if (!S.act.classList.contains('sc-has-clip') || !S.canvas.classList.contains('sc-has-clip')) {
+      // Something else restored the act's classes (a framework re-render, an
+      // engine rescan). The canvas is painted, so the poster must stay down.
       S.act.classList.add('sc-has-clip');
       S.canvas.classList.add('sc-has-clip');
     }
@@ -555,12 +579,14 @@ function mount(root, opts) {
   // ---- capture -------------------------------------------------------------------
   async function capture(target, o) {
     o = o || {};
+    if (!alive) throw new Error('capture: handle destroyed');
     const el = typeof target === 'string' ? document.querySelector(target) : target;
     const S = H.scenes.find((s) => s.act === el || s.canvas === el || (el && el.contains && el.contains(s.canvas)));
     if (!S) throw new Error('capture: no data-sc-3d scene in that element');
     if (!hasWebGL()) throw new Error('capture: WebGL is not available');
     if (!S.built) {
       await start(S, true);
+      if (!alive) throw new Error('capture: handle destroyed');
       if (!S.built) throw new Error('capture: the scene did not load');
     }
     const { THREE } = S;

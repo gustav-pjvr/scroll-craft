@@ -67,7 +67,10 @@ export type ThreeDLoader = () => Promise<Loadable<ScrollCraft3DModule>>;
 export interface UseScrollCraftOptions extends ScrollCraftMountOptions {
   /** Default: import('../../engine/scrollcraft.esm.js'). Define it at module scope so its identity is stable. */
   engine?: EngineLoader;
-  /** When the contents of this array change, the hook calls api.rescan() (not a remount). Keep its length fixed. */
+  /**
+   * When the contents of this array change (element-wise, Object.is), the hook calls api.rescan()
+   * once (not a remount). Its length may change and it may be omitted; omitted counts as [].
+   */
   deps?: ReadonlyArray<unknown>;
   /** Optional loader for the 3D module; mounted after the engine, destroyed in the same cleanup. */
   threeD?: ThreeDLoader;

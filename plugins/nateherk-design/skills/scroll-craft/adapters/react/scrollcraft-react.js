@@ -224,8 +224,13 @@ export function useScrollCraft(ref, options) {
     };
   }, [ref]);
 
-  // deps: rescan when the contents change. Compared against the last seen
-  // array so StrictMode's second effect pass (same deps) does not rescan.
+  // deps: rescan when the contents change. The array is NOT handed to React
+  // as the effect's dependency list, because its length is the consumer's
+  // (omitted, then an array, or a list that grows) and React warns and
+  // mis-compares when that list changes size. Instead the effect runs after
+  // every commit and compares element-wise against the last seen array, which
+  // also keeps StrictMode's second effect pass (same deps) from rescanning.
+  // Missing deps count as an empty array.
   var deps = (options && options.deps) || EMPTY;
   var lastDeps = useRef(null);
   useEffect(function () {
@@ -233,7 +238,7 @@ export function useScrollCraft(ref, options) {
     if (sameDeps(lastDeps.current, deps)) return;
     lastDeps.current = deps;
     scheduleRescan(apiRef);
-  }, deps);
+  });
 
   return apiRef;
 }
