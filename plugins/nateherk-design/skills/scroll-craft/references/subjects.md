@@ -86,10 +86,10 @@ organisers' own registration page), and the skill had no path for it.
 
 When the date is announced, the page switches to the full list above: the
 JSON-LD, the `.ics` and the schedule all come from the one data source, on the
-same day. Without `--date-tba`, site-check requires every Event `startDate`
-to carry a time and a time zone and flags any that is already in the past,
-archive records included, so take a past edition's JSON-LD off when the new
-date goes up.
+same day. Without `--date-tba`, site-check requires at least one Event whose
+`startDate` carries a time and a time zone and is current or in the future
+(the announced edition); a past edition's Event JSON-LD on a results page
+stays, as an archive record, in both modes.
 
 **Grammar leanings:** rhythmic cutlist (the pulse of an announcement) or
 filmic one-shot (the single-argument case for attending). Both are leanings,

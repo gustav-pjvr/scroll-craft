@@ -25,8 +25,9 @@ A scene has, at minimum:
 - **Planes that visibly separate.** Across the hero's pin, the fastest plane
   and the slowest plane must separate by at least about 6% of the viewport
   height (roughly 55 to 60px on a 900 to 1000px-tall screen), and something in
-  the frame must change on every notch of the wheel. Under about 3% it reads
-  as a still. The first real build moved its planes 1.4vh and 1.3vw across a
+  the frame must change on every notch of the wheel. Under 5% it reads as a
+  still, and `shoot.mjs` reports it as a NEAR-STATIC PINNED ACT; 6% is the
+  target, 5% the floor. The first real build moved its planes 1.4vh and 1.3vw across a
   1.5-viewport pin, about 1% of the viewport, and every frame on its contact
   sheet looked the same. The builder's own verdict on the finished hero:
   "structurally it is still big name over a race photo".

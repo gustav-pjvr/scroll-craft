@@ -67,13 +67,16 @@ site-check also runs the TEXT UNDER CHROME check (below) on every page's six
 shots.
 
 For an event whose next date is not announced, add `--date-tba`, or pass
-`--brief <path>` and let site-check read the TBA state from BRIEF.md. It then
+`--brief <path>` and let site-check read the TBA state from BRIEF.md (a field
+line such as `Date: to be announced`; a passing "TBC" elsewhere in the brief
+does not count, and the run's header says where the TBA state came from). It then
 asserts that no page claims a current or future date (no such Event JSON-LD,
 no `.ics`, no countdown) and that some page says the date is to be announced,
 instead of requiring the `.ics` and the JSON-LD. A past edition's Event
 JSON-LD is exempt there as an archive record. When a date is claimed (no
-flag), every Event `startDate` must carry a time and a time zone and must not
-be in the past. See subjects.md, "Date not yet announced".
+flag), at least one Event must carry a `startDate` with a time and a time
+zone that is current or in the future; past editions' JSON-LD stays as an
+archive record. See subjects.md, "Date not yet announced".
 
 Two setup facts that will otherwise waste a pass:
 
@@ -250,8 +253,10 @@ Real, and worth knowing before you trust a green run:
 `sticky` element painted above it, at the first frame and at every sampled
 position where that text is meant to be visible (its cue at or near full
 opacity). The report names the text and the covering element. Text in
-ordinary flow scrolling under the bar is normal and is not reported. Fix by
-clearing the bar's height (taste.md, "Fixed chrome"), not by hiding the bar.
+ordinary flow scrolling under the bar is normal and is not reported, and
+neither is a decorative fixed overlay with `pointer-events: none` (a scrim, a
+vignette, an edge fade): chrome is what the reader can hit. Fix by clearing
+the bar's height (taste.md, "Fixed chrome"), not by hiding the bar.
 The first real build's hero eyebrow sat clipped under its header through ten
 rounds of shots, because nothing reported it and nobody looked. In
 `report.json` the findings are under `chrome`, and the first frame's under

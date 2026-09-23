@@ -472,6 +472,8 @@
     var subscribers = [];
     var moved = [];       // { el, parent, next } DOM moves to undo (worldflight copy layer)
     var flowReveals = []; // { el, dir, fired } data-sc-reveal outside any act
+    var openedReveals = typeof WeakSet === 'function' ? new WeakSet() : null; // survives rescan()
+    var openClip = function (dir) { return dir === 'iris' ? 'circle(78% at 50% 50%)' : 'inset(0 0 0 0)'; };
     function listen(t, type, fn, o) {
       t.addEventListener(type, fn, o);
       subs.push({ t: t, type: type, fn: fn, o: o });
@@ -905,6 +907,14 @@
       var dir = c.getAttribute('data-sc-reveal') || 'up';
       snap(c);
       addClass(c, 'sc-reveal--flow');
+      // An element that already opened before a rescan() stays open: it is
+      // on screen and must not be wiped a second time.
+      if (openedReveals && openedReveals.has(c)) {
+        c.style.clipPath = openClip(dir);
+        addClass(c, 'sc-in');
+        flowReveals.push({ el: c, dir: dir, fired: true });
+        return;
+      }
       c.style.clipPath =
         dir === 'down' ? 'inset(100% 0 0 0)' :
         dir === 'left' ? 'inset(0 100% 0 0)' :
@@ -1396,6 +1406,10 @@
             else vis = smooth(1 - (a.p - outStart) / Math.max(q.to - outStart, 0.001));
           }
           vis = clamp01(vis);
+          // A pan act under reduced motion has no pinned travel (layout()
+          // collapsed it), so p steps from 0 to 1 in about a pixel and a
+          // windowed cue would never light. Show every cue in it settled.
+          if (reduce && a.device === 'pan') vis = 1;
 
           if (q.kinetic) {
             if (!q.units) q.units = splitText(q.el, q.kinetic, splitSnap);
@@ -1462,7 +1476,8 @@
         var frr = FR.el.getBoundingClientRect();
         if (frr.top < vh * 0.88 && frr.bottom > 0) {
           FR.fired = true;
-          FR.el.style.clipPath = FR.dir === 'iris' ? 'circle(78% at 50% 50%)' : 'inset(0 0 0 0)';
+          if (openedReveals) openedReveals.add(FR.el);
+          FR.el.style.clipPath = openClip(FR.dir);
           addClass(FR.el, 'sc-in');
         }
       }
@@ -1720,6 +1735,13 @@
       // region and the act is not pinned, let the region bring it in.
       var railEl = el.closest('[data-sc-pan]');
       if (railEl && act.contains(railEl)) {
+        // Keyboard focus only (a mouse click on a rail item must not jump the
+        // page), and only when the item is not already fully in view.
+        var fv = false;
+        try { fv = el.matches(':focus-visible'); } catch (e3) { fv = true; }
+        if (!fv) return;
+        var ir = el.getBoundingClientRect();
+        if (ir.left >= 0 && ir.right <= vw && ir.top >= 0 && ir.bottom <= vh) return;
         if (reduce) {
           try { el.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'instant' }); } catch (e2) { el.scrollIntoView(); }
           return;
