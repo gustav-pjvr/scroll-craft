@@ -77,6 +77,18 @@ script pins Chrome's connection estimate to 4G
 silently turned ordinary runs into lite ones. `device-diag.html` gains a seek
 latency readout and a `?manifest=` candidate list for phone calibration.
 
+**Originality, against the world.** Asked for directly by Gustav: make
+whatever model runs the skill ensure its design and ideas are unique. The
+fingerprint gate only compares a build against the user's own registry, so a
+first build was never checked, and the worked examples (five signature moves,
+the Sonder hero, ten approved sites) read as a menu. uniqueness.md §6 now
+requires every idea to be derived from something true about the subject,
+marks the skill's own examples as taken, and adds three tests before markup
+and again at Step 5: swap (would it work unchanged for a competitor), first
+guess (drop the idea every generated site reaches for) and describe it (one
+sentence that fits no other AI-built site). BRIEF.md gains an Originality
+block, and SKILL.md a fifth spine rule, a pre-build check and a hard rule.
+
 **Fixes to upstream behaviour.** template.html's two kinetic headings carried
 their cue on the wrapper, so the engine never split them; the cue is now on
 the heading, and devices.md says the two attributes must share an element. The

@@ -27,8 +27,9 @@ the shape was never a decision anybody made.
 > A build that only changes world is a re-skin.
 
 This file is the structure axis. Read it after the interview and before the
-score table. It has three parts that are not optional: pick a **grammar**,
-invent a **signature move**, and pass the **fingerprint gate**.
+score table. It has four parts that are not optional: pick a **grammar**,
+invent a **signature move**, pass the **fingerprint gate**, and pass the
+**originality tests** in §6.
 
 ---
 
@@ -363,6 +364,10 @@ and it is the only part of a build that cannot be arrived at by following rules.
 
 ### What counts
 
+These five show the bar a signature move has to clear. They are examples,
+not a menu, and they are now taken: do not ship any of them, or a recoloured
+version of one, as your move (see §6).
+
 - **Scroll-as-playhead over a persistent trace rail.** A thin horizontal trace
   fixed at the bottom edge, present the whole page, drawing a real waveform or
   route or timeline. Scroll position is the playhead. Passing an act stamps a
@@ -491,3 +496,74 @@ Two specific traps stay banned in every family, because they are not aesthetics,
 they are defaults with a look: the cream-and-brass artisan palette
 (taste.md, Colour) and violet-to-blue AI gradients. Both are what a page reaches
 for when nobody chose.
+
+---
+
+## 6. Originality: unique against the world, not only against your registry
+
+The fingerprint gate stops you repeating yourself. It does nothing about
+repeating everyone else, and on a first build it checks nothing at all,
+because the registry starts empty. This section closes that gap. It applies
+to every build, including the first, and to every idea on the page: the
+grammar choice, the hero composition, the signature move, the close, and the
+opening line of copy.
+
+**Whatever model is running this skill, assume its first idea is the common
+one.** A model's most likely idea for a subject is, by construction, the idea
+most other generated sites for that subject already have. Uniqueness is not a
+polish pass at the end; it is a check on every decision, made before markup.
+
+### Derive, do not select
+
+Every design idea must be traceable to something true about **this** subject:
+its place, material, process, history, audience, a number it can prove, or a
+phrase the client used in the interview. The device kit, the eight grammars,
+the worlds and the signature moves in §3 are vocabulary for expressing an
+idea, not a source of ideas. Picking one off a list is not an idea.
+
+For the hero, the signature move and the close, write one line each in
+BRIEF.md: "This comes from ___ about the subject." If the blank can only be
+filled with something generic ("it feels premium", "scrolling is fun",
+"modern and clean"), the idea is not derived yet. Go back to the interview
+answers and the brand material until it is.
+
+### The examples in these docs are taken
+
+The five signature moves in §3, the Sonder hero in hero-depth.md, the ten
+sites in approved-collection.md, the skeleton in template.html and the rows
+in EXAMPLES.md are worked examples of the standard. They show the bar; they
+are not a menu. Do not reuse any of them as a build's signature move, hero
+composition or page structure, and do not ship a re-skinned version of one.
+Learn why each works, then do something else that comes from this subject.
+The same holds for any site the client or a reference names: take the reason
+it works, never its layout.
+
+### Three tests before markup
+
+Run all three on the plan, after the score table and before the first line of
+HTML. Run them again on the finished page during Step 5.
+
+1. **The swap test.** Replace the brand name, logo and photography with a
+   direct competitor's. If the page still works unchanged for them, it is not
+   about this subject. Change the idea, not the logo.
+2. **The first-guess test.** Before planning, write down the first idea that
+   comes to mind for the hero and for the signature move (a coffee brand:
+   rising steam; a marathon: a finish line; a law firm: marble columns).
+   Treat each as the idea every other build reaches for. Do not ship it unless
+   you can say, in one sentence, what makes your version impossible to mistake
+   for the obvious one. Usually the honest answer is to drop it.
+3. **The describe-it test.** Describe the page in one sentence to someone who
+   has seen a hundred AI-built sites. If the sentence could describe one of
+   them ("dark hero, big headline, cards that tilt, a button at the end"), the
+   page is generic. The sentence should fit this site and no other. It is the
+   builder's side of the tell-someone sentence in feel.md.
+
+### Record it
+
+BRIEF.md carries an **Originality** block: the "comes from" line for the hero,
+the signature move and the close; each first-guess idea and whether it was
+dropped or how it was made unmistakable; and the swap-test and describe-it
+results. The final report restates the block against the finished page. A
+build that cannot fill the block honestly is not ready to build, and a
+generated page that fails any of the three tests at Step 5 goes back to Step 2,
+not to a styling tweak.

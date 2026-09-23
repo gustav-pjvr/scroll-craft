@@ -41,7 +41,7 @@ recognisable at a glance: same claymation diorama, same centred copy, same
 `01 / 06` counter, same "scroll to explore" nudge. Five sections that behave
 identically are one section shown five times.
 
-Four rules follow from that, and they are the spine of this skill:
+Five rules follow from that, and they are the spine of this skill:
 
 1. **Variety is the product.** A page uses at least four device families and
    never the same device twice in a row. Read [references/devices.md](references/devices.md).
@@ -57,6 +57,13 @@ Four rules follow from that, and they are the spine of this skill:
    page looks. Structure is a separate axis, and it has to be decided
    deliberately or every build inherits the same skeleton. The first four builds
    did exactly that. Read [references/uniqueness.md](references/uniqueness.md).
+5. **Unique against the world, not only against your own past builds.**
+   Whatever model runs this skill, its first idea for a subject is the one most
+   generated sites already have. Every design idea (hero, signature move,
+   close, structure) is derived from something true about this subject, never
+   picked from the examples in these docs, and passes the swap, first-guess and
+   describe-it tests before markup. Read
+   [uniqueness.md §6](references/uniqueness.md#6-originality-unique-against-the-world-not-only-against-your-registry).
 
 ## Nate's standing hero preference
 
@@ -160,6 +167,10 @@ BRIEF.md must contain, at minimum:
   name), and the transition choice ([site.md](references/site.md)).
 - **Subject block** from [subjects.md](references/subjects.md) when the
   subject is an event, a nonprofit, a portfolio or a case study.
+- **Originality block** ([uniqueness.md §6](references/uniqueness.md)): where
+  the hero, the signature move and the close each come from in this subject,
+  the first-guess ideas and what happened to them, and the swap-test and
+  describe-it results.
 
 [references/feel.md](references/feel.md) is the spec for all four.
 
@@ -323,6 +334,9 @@ Checks before you build:
   justification. Video is the heaviest thing on the page; the default page
   has none.
 - No two adjacent acts carry the same feeling. If they do, one is filler.
+- The Originality block in BRIEF.md is filled honestly and the plan passes
+  the swap, first-guess and describe-it tests (uniqueness.md §6). Nothing on
+  the page is one of this skill's own worked examples re-used.
 - One act is the peak and it has the largest span by a visible margin. The act
   before it is quieter than it is.
 - Every act earns its scroll span. Eight to fourteen viewport-heights is a
@@ -489,6 +503,7 @@ machine-made.
 | A donation, registration or payment form built in the page | Link to, or embed, the platform the client actually uses |
 | A form that shows success it cannot confirm, or that submits personal data in a URL | A real POST endpoint, honest state, and a working no-JS path |
 | Impact figures, attendance or outcomes without a source the page can cite | Real, sourced numbers, or no number |
+| An idea taken from this skill's own examples, or a page that would work unchanged for a competitor | Derive it from this subject and pass the three tests in uniqueness.md §6 |
 
 ## Output
 
@@ -497,6 +512,7 @@ the other seven lost, the signature move, the fingerprint gate result against
 each existing row, the journey, the feeling curve and the peak, the feel-check
 diff (intended curve against felt curve, and what you changed), the score table
 (device per beat), the site shape (one page, or a site and which inner pages),
+the Originality block checked against the finished page,
 what you
 generated, what you verified with screenshots, and anything you could not
 verify. Say if the brief was self-authored rather than interviewed. Give the
