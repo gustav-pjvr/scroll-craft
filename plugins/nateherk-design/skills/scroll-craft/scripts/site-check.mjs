@@ -153,8 +153,14 @@ const linkSources = new Map();    // target url -> Set of source page urls
 const queue = [{ url: norm(HOME), depth: 0 }];
 seen.add(norm(HOME));
 
-while (queue.length && pages.length < MAX) {
+// Visits are capped as well as pages: a URL that redirects off-site or is not
+// HTML costs a browser load but adds no page, so a page full of such links
+// could otherwise keep the crawl going far past --max.
+const MAX_VISITS = MAX * 2;
+let visits = 0;
+while (queue.length && pages.length < MAX && visits < MAX_VISITS) {
   const { url, depth } = queue.shift();
+  visits++;
   const rec = await visit(url, depth);
   if (!rec) continue;
   pages.push(rec);

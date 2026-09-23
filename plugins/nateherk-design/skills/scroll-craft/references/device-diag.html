@@ -283,6 +283,14 @@
 
     var list = [], rows = [], results = [];
     var base = new URL(manifestUrl, location.href);
+    // Same site only. This page is deployed beside real sites, so a crafted
+    // ?manifest= link must not make a visitor's phone download files from
+    // somewhere else. Capped too, since every candidate is buffered whole.
+    var MAX_CANDIDATES = 64;
+    if (base.origin !== location.origin) {
+      log('manifest refused: it must be on this site (' + location.origin + ')');
+      return;
+    }
     fetch(base.href).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
@@ -290,7 +298,9 @@
       list = (Array.isArray(j) ? j : (j.candidates || [])).map(function (c) {
         var f = c.file || c.name;
         return { c: c, file: f, url: new URL(f, base).href };
-      });
+      }).filter(function (it) {
+        return new URL(it.url).origin === location.origin;
+      }).slice(0, MAX_CANDIDATES);
       list.forEach(function (it) {
         var tr = document.createElement('tr');
         var label = it.c.height && it.c.crf ? it.c.height + 'p crf' + it.c.crf + ' g' + it.c.gop + (it.c.tier ? ' ' + it.c.tier : '') : it.file;

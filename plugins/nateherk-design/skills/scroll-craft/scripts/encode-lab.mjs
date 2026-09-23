@@ -156,7 +156,6 @@ function pickFfmpeg() {
   const candidates = [
     process.env.SCROLLCRAFT_FFMPEG,
     findOnPath("ffmpeg"),
-    "C:/Users/HP 865 G10/AppData/Local/Programs/ffmpeg/ffmpeg-9.0.2-full_build/bin/ffmpeg.exe",
     "/usr/local/bin/ffmpeg", "/opt/homebrew/bin/ffmpeg", "/usr/bin/ffmpeg", "/snap/bin/ffmpeg",
   ].filter(Boolean);
   for (const cand of candidates) {
