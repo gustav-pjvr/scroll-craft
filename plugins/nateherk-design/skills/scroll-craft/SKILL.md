@@ -590,8 +590,10 @@ live in verify.md, "The phone is a different machine".
 Fix what you found and shoot it again. Report what you actually verified and
 what you did not.
 
-Before calling a build done, also run the `site-qa` checklist: every screen
-state, the edge cases, and the console, 5xx and axe guards.
+Before calling a build done, hand it to the two checking skills, together:
+`/web-design-guidelines` (accessibility, forms, focus, UX details) and the
+`site-qa` checklist (every screen state, the edge cases, and the console, 5xx
+and axe guards). scroll-craft makes the site; those two check it.
 
 ## Hard rules
 
