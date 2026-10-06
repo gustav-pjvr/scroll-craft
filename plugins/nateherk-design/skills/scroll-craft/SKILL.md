@@ -118,7 +118,9 @@ These are execution principles and worked examples, not a reusable page skeleton
 ## Step 0: The brief and creative authority
 
 **Establish the brief before generating anything.** Reuse answers and assets
-already provided. When the user explicitly delegates creative direction (for
+already provided. When the project replaces an existing site, run the
+`site-archive` skill first and build the brief from its archive: the verbatim
+copy, the HD images, `BRAND-PALETTE.md` and `FINDINGS.md`. When the user explicitly delegates creative direction (for
 example, "use your judgment" or "I want to get out of your way"), write a
 `Self-authored under explicit creative delegation` brief and proceed. Cover the
 eight topics below, distinguish evidence from assumptions, and do not invent
